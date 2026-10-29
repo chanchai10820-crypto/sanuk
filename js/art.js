@@ -374,10 +374,104 @@ ${cat(22, 52, 0.95)}
 <path class="a-trunk" d="M120 70 L104 150"/><path class="a-hat a-o" d="M96 146 l20 4 l-6 22 l-24 -6 z"/>
 ${[['ตนเอง', 'a-u1', 20], ['ครอบครัว', 'a-u2', 120], ['ส่วนรวม', 'a-u4', 230]].map(([t, c, x]) => `<rect class="${c}" x="${x}" y="176" width="80" height="22" rx="11"/>${label(x + 40, 192, t, 'a-tw a-mid a-small')}`).join('')}`)
     },
-    workflow: {
-      alt: 'วงจรกระบวนการทำงาน 4 ขั้น: วิเคราะห์งาน วางแผน ปฏิบัติงาน ประเมินผล',
-      svg: svg(320, 230, `${cycle4([['วิเคราะห์งาน', 160, 36, 'a-u1'], ['วางแผน', 244, 115, 'a-u2'], ['ปฏิบัติงาน', 160, 196, 'a-u4'], ['ประเมินผล', 76, 115, 'a-u5']])}
-<g transform="translate(138 92) scale(.44)">${cat(0, 0, 1)}</g>`)
+    workflow3: {
+      alt: 'กระบวนการทำงาน 3 ขั้น วางแผน ทำตามแผน ประเมินผล และลูกศรย้อนกลับไปปรับปรุงครั้งต่อไป',
+      svg: svg(320, 200, `
+<rect class="a-paper a-o" x="34" y="20" width="42" height="56" rx="4"/><rect class="a-u1 a-o" x="45" y="14" width="20" height="10" rx="3"/>
+<path class="a-line a-thin" d="M42 38 h26 M42 48 h26 M42 58 h18"/>
+<path class="a-trunk" d="M172 18 L160 60"/><path class="a-hat a-o" d="M148 56 l24 5 l-5 18 l-26 -6 z"/>
+<circle class="a-ok" cx="265" cy="46" r="26"/><path class="a-checkw a-thinck" d="M253 46 l8 8 l14 -16"/>
+${[['วางแผน', 'a-u1', 55], ['ทำตามแผน', 'a-u2', 160], ['ประเมินผล', 'a-u4', 265]].map(([t, c, x], i) => `<rect class="${c}" x="${x - 44}" y="94" width="88" height="40" rx="20"/>${label(x, 119, `${i + 1}. ${t}`, 'a-tw a-mid a-small')}`).join('')}
+<path class="a-arrow" d="M100 114 h12"/><path class="a-arrow" d="M205 114 h12"/>
+<path class="a-dash" style="marker-end:url(#ah)" d="M265 138 Q160 196 60 140"/>
+${label(160, 196, 'ปรับปรุงงานครั้งต่อไป', 'a-mid a-small')}`)
+    },
+    schoolbag: {
+      alt: 'กระเป๋านักเรียนที่จัดหนังสือตามตารางสอน ตารางสอนที่ทำเครื่องหมายถูก และรองเท้านักเรียนที่ขัดสะอาด',
+      svg: svg(320, 200, `
+<rect class="a-u3 a-o" x="46" y="34" width="16" height="30" rx="2"/><rect class="a-u4 a-o" x="66" y="28" width="18" height="36" rx="2"/><rect class="a-u2 a-o" x="88" y="38" width="14" height="26" rx="2"/>
+<path class="a-line" d="M60 52 q20 -40 40 0"/>
+<rect class="a-u1 a-o" x="30" y="50" width="100" height="120" rx="20"/>
+<path class="a-u5 a-o" d="M30 74 q0 -24 24 -24 h52 q24 0 24 24 v10 h-100 z"/>
+<rect class="a-u5 a-o" x="50" y="118" width="60" height="38" rx="8"/><path class="a-line a-thin" d="M58 128 h44"/>
+<rect class="a-paper a-o" x="154" y="22" width="150" height="96" rx="6"/>
+${label(229, 42, 'ตารางสอน', 'a-mid a-bold a-small')}
+${[0, 1, 2].map((r) => `<path class="a-line a-thin" d="M162 ${58 + r * 20} h134"/>`).join('')}
+${[0, 1, 2, 3].map((r) => `<circle class="a-ok" cx="${176 + r * 34}" cy="${68 + (r % 3) * 20}" r="7"/><path class="a-checkw a-thinck" d="M${172 + r * 34} ${68 + (r % 3) * 20} l3 3 l6 -6"/>`).join('')}
+<path class="a-pan a-o" d="M170 176 v-26 q0 -6 6 -6 h22 q10 18 34 20 h22 q12 0 12 12 z"/>
+<rect class="a-paper a-o" x="168" y="176" width="100" height="8" rx="3"/>
+<ellipse class="a-shine" cx="236" cy="162" rx="8" ry="2.5" opacity=".8"/>
+${label(80, 194, 'กระเป๋า', 'a-mid a-small')}${label(218, 198, 'รองเท้า', 'a-mid a-small')}`)
+    },
+    seasons: {
+      alt: 'การแต่งกายตาม 3 ฤดู ฤดูร้อนใส่เสื้อบางกับหมวก ฤดูฝนใช้ร่ม ฤดูหนาวใส่เสื้อกันหนาวและผ้าพันคอ',
+      svg: svg(340, 200, `
+${['ฤดูร้อน', 'ฤดูฝน', 'ฤดูหนาว'].map((t, i) => `<rect class="a-soft" x="${6 + i * 112}" y="6" width="104" height="188" rx="14"/>${label(58 + i * 112, 184, t, 'a-mid a-bold')}`).join('')}
+<circle class="a-hat a-o" cx="34" cy="34" r="14"/>
+<g transform="translate(26 70) scale(.7)"><path class="a-sky a-o" d="M10 14 l20 -14 q20 14 40 0 l20 14 l-10 20 l-10 -6 v74 h-40 v-74 l-10 6 z"/></g>
+<path class="a-hat a-o" d="M60 46 q14 -16 28 0 h8 q-22 10 -44 0 z"/>
+<ellipse class="a-paper a-o" cx="170" cy="32" rx="36" ry="14"/>${drops(150, 54)}${drops(178, 50)}
+<g transform="translate(130 104)"><path class="a-u5 a-o" d="M0 30 a40 30 0 0 1 80 0 z"/><path class="a-line" d="M40 30 v34 q0 8 -8 8"/></g>
+<path class="a-line a-thin" d="M244 24 h50 q10 0 10 -8 M250 40 h56 q10 0 10 8"/>
+<g transform="translate(250 64) scale(.7)"><path class="a-u3 a-o" d="M20 4 q20 14 40 0 l30 12 l6 62 l-14 2 l-10 -40 v58 h-64 v-58 l-10 40 l-14 -2 l6 -62 z"/><path class="a-u5 a-o" d="M14 2 q26 20 52 0 l4 10 q-30 22 -60 0 z"/><rect class="a-u5 a-o" x="50" y="14" width="12" height="40" rx="3"/></g>`)
+    },
+    stitch: {
+      alt: 'การเนาผ้า เข็มและด้ายเย็บขึ้นลงเป็นเส้นตรงระยะเท่ากัน และหมอนปักเข็ม',
+      svg: svg(320, 200, `
+<rect class="a-u4 a-o" x="20" y="54" width="210" height="96" rx="6"/>
+<path class="a-line a-thin" d="M20 102 h210" opacity=".35"/>
+<path class="a-line" style="stroke:#FFFFFF;stroke-dasharray:14 10" d="M36 102 H196"/>
+<path class="a-metal a-o" d="M198 106 L264 54 l4 4 L202 110 z"/><circle class="a-paper" cx="261" cy="58" r="2"/>
+<path class="a-line" style="stroke:var(--art-gold)" d="M262 56 q26 -40 48 -16"/>
+<path class="a-line a-thin" d="M36 160 v8 h24 v-8"/>${label(48, 186, 'ระยะเท่า ๆ กัน', 'a-small')}
+<ellipse class="a-bad a-o" cx="276" cy="156" rx="30" ry="18"/>
+<path class="a-line a-thin" d="M266 146 l-6 -18 M284 144 l4 -20"/><circle class="a-hat a-o" cx="260" cy="126" r="4"/><circle class="a-hat a-o" cx="288" cy="122" r="4"/>
+${label(276, 194, 'หมอนปักเข็ม', 'a-mid a-small')}`)
+    },
+    vegtypes: {
+      alt: 'ผักสวนครัว 5 ประเภทตามส่วนที่กิน ใบและลำต้น ผลและฝัก หัวและราก ดอก กาบและก้าน',
+      svg: svg(340, 210, `
+${leafy(36, 150, 70)}
+<g transform="translate(86 56)"><path class="a-bad a-o" d="M10 10 q30 10 26 70 q-2 10 -8 0 q0 -50 -24 -60 z"/><path class="a-leaf a-o" d="M4 4 l14 2 l-6 12 z"/></g>
+<g transform="translate(142 70)"><path class="a-paper a-o" d="M30 0 q4 20 22 36 q14 16 0 34 h-44 q-14 -18 0 -34 q18 -16 22 -36 z"/><path class="a-line a-thin" d="M30 10 q-10 30 -6 58 M30 10 q10 30 6 58 M18 72 l-4 10 M26 72 l-1 12 M34 72 l1 12 M42 72 l4 10"/></g>
+<path class="a-stem" d="M240 150 v-62"/><ellipse class="a-leaf a-o" cx="252" cy="124" rx="12" ry="5" transform="rotate(-30 252 124)"/>
+${[0, 1, 2, 3, 4].map((k) => { const a = k * 72 * Math.PI / 180; return `<ellipse class="a-paper a-o" cx="${(240 + 15 * Math.cos(a)).toFixed(1)}" cy="${(78 + 15 * Math.sin(a)).toFixed(1)}" rx="11" ry="7" transform="rotate(${k * 72} ${(240 + 15 * Math.cos(a)).toFixed(1)} ${(78 + 15 * Math.sin(a)).toFixed(1)})"/>`; }).join('')}<circle class="a-hat a-o" cx="240" cy="78" r="7"/>
+<rect class="a-leaf a-o" x="296" y="46" width="6" height="88" rx="3"/><rect class="a-leaf a-o" x="305" y="36" width="6" height="98" rx="3"/><rect class="a-leaf a-o" x="314" y="52" width="6" height="82" rx="3"/>
+<rect class="a-paper a-o" x="294" y="126" width="28" height="24" rx="9"/><path class="a-line a-thin" d="M300 152 l-3 8 M308 152 v9 M316 152 l3 8"/>
+${[['ใบ ลำต้น', 36], ['ผล ฝัก', 104], ['หัว ราก', 172], ['ดอก', 240], ['กาบ ก้าน', 308]].map(([t, x]) => `<rect class="a-soft" x="${x - 31}" y="176" width="62" height="26" rx="13"/>${label(x, 194, t, 'a-mid a-small')}`).join('')}`)
+    },
+    handtools: {
+      alt: 'เครื่องมือช่าง 6 หน้าที่ ค้อนใช้ตอก ไขควงใช้ขันเกลียว คีมใช้จับ เลื่อยใช้ตัด ตลับเมตรใช้วัด และที่เจาะกระดาษใช้เจาะ',
+      svg: svg(340, 224, `
+${[
+    ['ตอก', 'ค้อน', '<rect class="a-board a-o" x="50" y="22" width="12" height="50" rx="4"/><rect class="a-metal a-o" x="28" y="10" width="56" height="16" rx="3"/><path class="a-metal a-o" d="M84 12 q12 0 14 -8 l4 4 q-4 14 -18 16 z"/>'],
+    ['ขันเกลียว', 'ไขควง', '<rect class="a-u5 a-o" x="48" y="6" width="18" height="34" rx="7"/><rect class="a-metal a-o" x="54" y="40" width="6" height="30"/><path class="a-metal a-o" d="M54 70 h6 l-1 6 h-4 z"/>'],
+    ['จับ', 'คีม', '<path class="a-metal a-o" d="M55 40 l-6 -32 l5 -2 l5 34 z"/><path class="a-metal a-o" d="M59 40 l6 -32 l-5 -2 l-5 34 z"/><path class="a-u1 a-o" d="M55 42 q-12 14 -14 34 l7 1 q4 -18 11 -32 z"/><path class="a-u1 a-o" d="M59 42 q12 14 14 34 l-7 1 q-4 -18 -11 -32 z"/><circle class="a-ink" cx="57" cy="41" r="3"/>'],
+    ['ตัด', 'เลื่อย', '<path class="a-metal a-o" d="M14 26 L80 26 L80 44 L14 60 z"/><path class="a-line a-thin" d="M18 58 l5 3 l4 -4 l5 3 l4 -4 l5 3 l4 -4 l5 3 l4 -4 l5 3 l4 -4 l5 3"/><path class="a-board a-o" d="M80 20 h20 q6 0 6 6 v26 q0 6 -6 6 h-20 z"/><rect class="a-paper" x="87" y="30" width="12" height="18" rx="4"/>'],
+    ['วัด', 'ตลับเมตร', '<rect class="a-hat a-o" x="20" y="16" width="48" height="48" rx="10"/><circle class="a-ink" cx="44" cy="40" r="5"/><rect class="a-hat a-o" x="66" y="54" width="34" height="8"/><path class="a-line a-thin" d="M74 54 v4 M82 54 v4 M90 54 v4"/>'],
+    ['เจาะ', 'ที่เจาะกระดาษ', '<rect class="a-u4 a-o" x="20" y="54" width="76" height="14" rx="3"/><path class="a-u4 a-o" d="M28 54 q0 -30 30 -36 h30 v12 h-24 q-16 4 -16 24 z"/><circle class="a-paper a-o" cx="44" cy="62" r="3"/><circle class="a-paper a-o" cx="70" cy="62" r="3"/>']
+  ].map(([fn, name, icon], i) => `<g transform="translate(${(i % 3) * 113} ${Math.floor(i / 3) * 112})"><rect class="a-soft" x="4" y="2" width="105" height="106" rx="12"/>${icon}${label(56, 90, fn, 'a-mid a-bold')}${label(56, 104, name, 'a-mid a-small')}</g>`).join('')}`)
+    },
+    toyfix: {
+      alt: 'ซ่อมของเล่นและของใช้ ขันสกรูรถของเล่นด้วยไขควง เนาตะเข็บตุ๊กตาหมี และติดเทปปกหนังสือ',
+      svg: svg(320, 200, `
+<g transform="translate(6 46)"><path class="a-u1 a-o" d="M4 92 h110 v-24 l-22 -26 h-48 l-20 26 h-20 z"/><rect class="a-sky a-o" x="50" y="48" width="34" height="18" rx="3"/><circle class="a-ink" cx="32" cy="94" r="13"/><circle class="a-metal" cx="32" cy="94" r="5"/><circle class="a-ink" cx="90" cy="94" r="13"/><circle class="a-metal" cx="90" cy="94" r="5"/><circle class="a-paper a-o" cx="72" cy="80" r="4"/></g>
+<g transform="translate(108 73) rotate(35)"><rect class="a-u5 a-o" x="0" y="0" width="14" height="28" rx="6"/><rect class="a-metal a-o" x="5" y="28" width="4" height="32"/></g>
+<g transform="translate(150 38)"><circle class="a-board a-o" cx="22" cy="14" r="10"/><circle class="a-board a-o" cx="62" cy="14" r="10"/><ellipse class="a-board a-o" cx="42" cy="100" rx="28" ry="34"/><ellipse class="a-board a-o" cx="12" cy="88" rx="10" ry="18" transform="rotate(20 12 88)"/><ellipse class="a-board a-o" cx="72" cy="88" rx="10" ry="18" transform="rotate(-20 72 88)"/><circle class="a-board a-o" cx="42" cy="34" r="22"/><circle class="a-ink" cx="34" cy="30" r="2.5"/><circle class="a-ink" cx="50" cy="30" r="2.5"/><ellipse class="a-ink" cx="42" cy="40" rx="3.5" ry="2.5"/><path class="a-line" style="stroke:#FFFFFF;stroke-dasharray:5 4" d="M30 78 q12 22 0 46"/></g>
+<g transform="translate(250 54)"><rect class="a-u3 a-o" x="0" y="0" width="60" height="92" rx="4"/><rect class="a-paper a-o" x="8" y="6" width="48" height="80" rx="2"/><path class="a-line a-thin" d="M16 24 h32 M16 36 h32 M16 48 h24"/><rect class="a-sky a-o" x="-8" y="30" width="22" height="40" rx="2" opacity=".85"/></g>
+${label(66, 192, 'ขันสกรู', 'a-mid a-small')}${label(192, 192, 'เนาตะเข็บ', 'a-mid a-small')}${label(280, 192, 'ติดเทป', 'a-mid a-small')}`)
+    },
+    localcraft: {
+      alt: 'กระถางดินเผาพันเชือกปอที่ขอบและติดเมล็ดพืชเป็นลาย กับที่คั่นหนังสือดอกไม้แห้งผูกพู่เชือก',
+      svg: svg(320, 200, `
+${pot(40, 92, 110, 74)}${leafy(95, 84, 42)}
+<path class="a-line a-thin" style="stroke:var(--art-trunk)" d="M36 86 H154 M36 90 H154"/>
+${[0, 1, 2, 3, 4, 5, 6, 7].map((k) => `<circle class="${['a-bad', 'a-leaf', 'a-hat', 'a-ink'][k % 4]} a-o" cx="${58 + k * 10}" cy="${126 + (k % 2 ? 8 : 0)}" r="4"/>`).join('')}
+<rect class="a-paper a-o" x="210" y="24" width="52" height="146" rx="4"/>
+<circle class="a-soft a-o" cx="236" cy="38" r="4"/><path class="a-line" style="stroke:var(--art-trunk)" d="M236 34 q-10 -18 -2 -30 M236 34 q8 -16 16 -24"/>
+${[0, 1, 2, 3, 4].map((k) => { const a = (k * 72 - 90) * Math.PI / 180; return `<ellipse class="a-pink a-o" cx="${(236 + 12 * Math.cos(a)).toFixed(1)}" cy="${(92 + 12 * Math.sin(a)).toFixed(1)}" rx="9" ry="6" transform="rotate(${k * 72 - 90} ${(236 + 12 * Math.cos(a)).toFixed(1)} ${(92 + 12 * Math.sin(a)).toFixed(1)})"/>`; }).join('')}<circle class="a-hat a-o" cx="236" cy="92" r="6"/>
+<path class="a-stem" d="M236 106 v44"/><ellipse class="a-leaf a-o" cx="246" cy="134" rx="10" ry="4" transform="rotate(-30 246 134)"/>
+${label(95, 192, 'กระถางตกแต่ง', 'a-mid a-small')}${label(236, 192, 'ที่คั่นหนังสือ', 'a-mid a-small')}`)
     },
     habits: {
       alt: 'ลูกศรวน 3 ทิศ Reduce Reuse Recycle และถังขยะ 4 สี เขียว เหลือง น้ำเงิน แดง',
@@ -410,27 +504,6 @@ ${[0, 1, 2, 3, 4, 5].map((i) => `<rect class="a-u${(i % 5) + 1} a-o" x="${30 + i
 <rect class="a-paper a-o" x="30" y="134" width="138" height="38" rx="4"/>${label(99, 158, 'ของเล่น', 'a-mid a-small')}
 <path class="a-trunk" d="M240 30 L230 140"/><path class="a-hat a-o" d="M216 136 l30 4 l-4 40 l-34 -4 z"/>
 <path class="a-u1 a-o" d="M262 150 h40 l-6 30 h-34 z"/><rect class="a-ink" x="276" y="128" width="6" height="24"/>`)
-    },
-    dining: {
-      alt: 'การจัดโต๊ะอาหาร จานตรงกลาง ส้อมด้านซ้าย ช้อนด้านขวา และแก้วน้ำด้านขวาบน',
-      svg: svg(320, 200, `
-<rect class="a-soft" x="10" y="10" width="300" height="180" rx="14"/>
-<circle class="a-paper a-o" cx="160" cy="110" r="56"/><circle class="a-soft" cx="160" cy="110" r="38"/>
-<g transform="translate(78 64)"><rect class="a-metal a-o" x="6" y="30" width="8" height="70" rx="3"/><path class="a-metal a-o" d="M0 0 v28 q10 8 20 0 v-28 h-4 v22 h-3 v-22 h-6 v22 h-3 v-22 z"/></g>
-<g transform="translate(228 64)"><rect class="a-metal a-o" x="6" y="30" width="8" height="70" rx="3"/><ellipse class="a-metal a-o" cx="10" cy="14" rx="10" ry="16"/></g>
-<path class="a-sky a-o" d="M254 22 h30 l-4 40 h-22 z"/>
-${label(88, 186, 'ส้อม', 'a-mid a-small')}${label(160, 186, 'จาน', 'a-mid a-small')}${label(238, 186, 'ช้อน', 'a-mid a-small')}${label(296, 78, 'แก้ว', 'a-end a-small')}`)
-    },
-    snack: {
-      alt: 'แซนด์วิชผักไข่วางบนจาน ข้าง ๆ มีสบู่และหยดน้ำ หมายถึงล้างมือก่อนทำอาหาร',
-      svg: svg(320, 200, `
-<ellipse class="a-paper a-o" cx="140" cy="160" rx="110" ry="26"/>
-<path class="a-egg a-o" d="M50 140 l90 -50 l90 50 z" style="fill:#F2D3A0"/>
-<path class="a-leaf a-o" d="M54 132 q20 -12 40 0 q20 -12 40 0 q20 -12 40 0 q20 -12 50 0 l-80 -36 z"/>
-<path class="a-yolk a-o" d="M70 122 l70 -38 l70 38 z" style="fill:#FFE27A"/>
-<path class="a-egg a-o" d="M60 116 l80 -44 l80 44 z" style="fill:#F2D3A0"/>
-<rect class="a-u1 a-o" x="252" y="40" width="46" height="30" rx="10"/>${label(275, 60, 'สบู่', 'a-tw a-mid a-small')}
-${drops(262, 84)}`)
     },
     garden: {
       alt: 'กระถางผักสวนครัว บัวรดน้ำกำลังรดน้ำ และดวงอาทิตย์',
@@ -479,20 +552,6 @@ ${label(241, 190, 'ความสูงทุก 3 วัน', 'a-mid a-small')
 <g transform="translate(150 60)"><rect class="a-hat a-o" x="0" y="0" width="140" height="26" rx="3"/>${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((i) => `<path class="a-line a-thin" d="M${8 + i * 9.5} 0 v${i % 2 ? 6 : 10}"/>`).join('')}</g>
 <g transform="translate(150 110) rotate(-8)"><rect class="a-u2 a-o" x="0" y="0" width="110" height="16" rx="3"/><path class="a-skin a-o" d="M110 0 l20 8 l-20 8 z"/><path class="a-ink" d="M124 6 l6 2 l-6 2 z"/></g>
 <g transform="translate(284 130)"><circle class="a-sky a-o" cx="20" cy="20" r="22"/><circle class="a-paper a-o" cx="20" cy="20" r="9"/></g>`)
-    },
-    bottlecraft: {
-      alt: 'ขวดพลาสติกถูกตัดตามเส้นประ แล้วพันกระดาษสีกลายเป็นที่ใส่ดินสอ',
-      svg: svg(320, 200, `
-<path class="a-sky a-o" d="M40 40 q0 -10 10 -14 v-12 h20 v12 q10 4 10 14 v140 q0 8 -8 8 h-24 q-8 0 -8 -8 z" opacity=".75"/>
-<rect class="a-u1 a-o" x="50" y="6" width="20" height="10" rx="2"/>
-<path class="a-dash" d="M30 110 H90"/>${label(60, 104, 'ตัดตรงนี้', 'a-mid a-small')}
-<path class="a-arrow" d="M110 120 h40"/>
-<g transform="translate(170 40)">
-${[0, 1, 2].map((i) => `<g transform="rotate(${-10 + i * 10} ${40 + i * 12} 70)"><rect class="a-u${i + 2} a-o" x="${32 + i * 12}" y="0" width="10" height="80" rx="2"/><path class="a-skin a-o" d="M${32 + i * 12} 0 l5 -12 l5 12 z"/></g>`).join('')}
-<path class="a-u5 a-o" d="M10 60 h100 v80 q0 8 -8 8 h-84 q-8 0 -8 -8 z"/>
-<path class="a-line a-thin" d="M18 90 h84 M18 116 h84"/>
-<circle class="a-hat" cx="40" cy="104" r="6"/><circle class="a-paper" cx="80" cy="104" r="6"/>
-</g>`)
     },
     pinwheel: {
       alt: 'กระดาษสี่เหลี่ยมพับแนวทแยงและตัดไม่ถึงกลาง แล้วพับมุมเป็นกังหันลมติดกับหลอด',

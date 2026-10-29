@@ -230,8 +230,8 @@
     <h2>เรียนแต่ละหน่วยอย่างไร</h2>
     <ul class="howto">
       <li><b>ทดสอบก่อนเรียน</b><span>10 ข้อ ดูว่าเรารู้อะไรอยู่แล้ว ทำได้ครั้งเดียว</span></li>
-      <li><b>เรียนรายบท</b><span>บทละ 1 ชั่วโมง: ทดสอบก่อน คำถามนำ เนื้อหา กิจกรรม สรุป ทดสอบหลัง</span></li>
-      <li><b>ทำแบบฝึกหัดและเล่นเกม</b><span>${C.key === 'cs' ? 'เรียงลำดับ จับคู่ เขียนคำสั่งพาแมวไปหาปลา' : 'เรียงลำดับ จับคู่ คัดแยกขยะ เลือกเครื่องมือให้ถูกงาน'}</span></li>
+      <li><b>เรียนรายบท</b><span>บทละ 1 ชั่วโมง: ${stagesOf(C).map((x) => x.name).join(' → ')}</span></li>
+      <li><b>ทำแบบฝึกหัดและเล่นเกม</b><span>${C.key === 'cs' ? 'เรียงลำดับ จับคู่ เขียนคำสั่งพาแมวไปหาปลา' : 'เรียงลำดับ จับคู่ คัดแยกขยะ แต่งกายให้เหมาะ เลือกเครื่องมือให้ถูกงาน'}</span></li>
       <li><b>ทดสอบหลังเรียน</b><span>10 ข้อ เทียบคะแนนกับก่อนเรียน ดูเฉลยได้</span></li>
     </ul>
   </section>
@@ -412,10 +412,11 @@
     u3: ['แบบฝึกหัดหน่วยที่ 3 และเกมคัดแยกเว็บไซต์'],
     u4: [],
     u5: ['แบบฝึกหัดหน่วยที่ 5 เกมฮีโร่ปลอดภัยออนไลน์ และเกมรหัสผ่านแข็งแรง'],
-    c1: ['แบบฝึกหัดหน่วยที่ 1 และเกมแยกขยะให้ถูกถัง'],
-    c2: ['ฝึกพับเสื้อผ้าและถุงเท้า', 'ฝึกจัดโต๊ะอาหารและล้างจาน', 'ทำความสะอาดห้องเรียนตามใบตรวจเวร', 'ทำแซนด์วิชผักไข่และประเมินผลงาน', 'นำเสนอบันทึกงานบ้านที่บ้าน 1 สัปดาห์', 'แบบฝึกหัดหน่วยที่ 2 และเกมเครื่องมือนี้ใช้กับงานอะไร'],
-    c3: ['ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 1', 'ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 2', 'ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 3', 'ทำปุ๋ยหมักจากเศษผักและใบไม้', 'เก็บเกี่ยวผักและนำไปประกอบอาหาร', 'ทำแผนภูมิการเจริญเติบโตและนำเสนอ', 'แบบฝึกหัดหน่วยที่ 3'],
-    c4: ['ร่างแบบสิ่งประดิษฐ์จากวัสดุเหลือใช้ของตนเอง', 'ประดิษฐ์ผลงานของตนเอง ครั้งที่ 1', 'ประดิษฐ์ผลงานของตนเอง ครั้งที่ 2', 'จัดนิทรรศการและประเมินผลงาน', 'แบบฝึกหัดหน่วยที่ 4 และเกมปลอดภัยหรือไม่']
+    c1: ['ฝึกกรอกน้ำดื่มและปัด กวาด เช็ดถูตามขั้นตอน', 'ทำความสะอาดห้องเรียนตามใบตรวจเวรและแยกขยะ', 'นำเสนอตารางช่วยงานบ้าน 1 สัปดาห์ แบบฝึกหัดหน่วยที่ 1 และเกมแยกขยะให้ถูกถัง'],
+    c2: ['ซ่อมเสื้อผ้าของตนเองด้วยการเนา แบบฝึกหัดหน่วยที่ 2 และเกมแต่งกายให้เหมาะ'],
+    c3: ['เตรียมภาชนะและดินผสมจากวัสดุเหลือใช้', 'ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 1', 'ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 2', 'เก็บเกี่ยวผัก ทำแผนภูมิการเจริญเติบโต และนำเสนอ', 'แบบฝึกหัดหน่วยที่ 3 และเกมเครื่องมือนี้ใช้กับงานอะไร'],
+    c4: ['ฝึกใช้และเก็บรักษาเครื่องมือช่าง และเกมเครื่องมือช่างทำหน้าที่อะไร', 'ซ่อมของเล่นหรือของใช้ของตนเอง นำเสนอผลงาน และแบบฝึกหัดหน่วยที่ 4'],
+    c5: ['ร่างแบบและประดิษฐ์ผลงานจากวัสดุในท้องถิ่นของตนเอง', 'ประเมินและปรับปรุงผลงาน จัดนิทรรศการนักประดิษฐ์ตัวน้อย', 'แบบฝึกหัดหน่วยที่ 5 และเกมปลอดภัยหรือไม่']
   };
   function hourPlan() {
     let h = 0;
@@ -430,6 +431,7 @@
   }
   function coursePage() {
     const plan = hourPlan();
+    const STAGES = stagesOf(C);
     const rows = C.units.map((u, i) => `
 <tr><td class="num">${i + 1}</td><td><b>${u.title}</b><br><span class="muted">${u.lessons.map((l, k) => `${i + 1}.${k + 1} ${l.title}`).join(' · ')}</span></td>
 <td><b>${u.indicator.code}</b><br>${u.indicator.text}</td><td class="num">${u.hours}</td></tr>`).join('');
@@ -539,7 +541,9 @@
   }
 
   /* ───────── หน้าบทเรียน: 1 บท = 1 ชั่วโมง 6 ขั้น ───────── */
-  const STAGES = window.STAGES || [];
+  // ขั้นของชั่วโมงเรียน แต่ละวิชาเปลี่ยนชื่อขั้นได้ด้วย stageNames (เวลาแต่ละขั้นเท่าเดิม)
+  const BASE_STAGES = window.STAGES || [];
+  const stagesOf = (c) => BASE_STAGES.map((x) => Object.assign({}, x, (c.stageNames || {})[x.id]));
   let lquiz = null;   // แบบทดสอบประจำบทที่กำลังทำ { key, qs, ans, done, score }
 
   // ผลแบบทดสอบประจำบท นับว่าทำก่อนเรียนแล้วเมื่อทุกคนในกลุ่มทำแล้ว
@@ -578,7 +582,7 @@
     if (kind === 'pre') {
       return `<div class="score"><div class="big">${lquiz.score}<small>/${total}</small></div><span class="chip">ร้อยละ ${p}</span>
 <p>${p >= 80 ? 'รู้เรื่องนี้มาก่อนเยอะเลย เรียนต่อให้เก่งยิ่งขึ้น' : 'ไม่เป็นไร ชั่วโมงนี้เราจะได้เรียนรู้เรื่องนี้ด้วยกัน'}</p>
-<a class="btn primary" href="${base}-warm">ไปขั้นคำถามนำ →</a></div>`;
+<a class="btn primary" href="${base}-warm">ไปขั้น${stagesOf(C)[1].name} →</a></div>`;
     }
     const lr = lessonRec(u.id, l);
     const gain = lquiz.score - (lr.pre ? lr.pre.score : 0);
@@ -600,6 +604,7 @@
   }
 
   function teacherPlan(u, l, lesson) {
+    const STAGES = stagesOf(C);
     const g = lesson.game && GAMES.find((x) => x.id === lesson.game);
     const heads = (lesson.body + (lesson.more || '')).match(/<h3>([\s\S]*?)<\/h3>/g) || [];
     const topics = heads.map(plain).join(' · ');
@@ -608,7 +613,7 @@
       warm: `ครูถามคำถามนำ ${(lesson.warmup || []).map((w) => `“${w.q}”`).join(' และ ')} ให้นักเรียนแสดงความคิดเห็น แล้วบอกจุดประสงค์ของชั่วโมงนี้`,
       learn: `ครูอธิบายเนื้อหาร่วมกับสื่อในบทเรียน หัวข้อ: ${topics || lesson.title} ระหว่างเรียนให้นักเรียนตอบคำถาม "ลองคิด" และทบทวนคำศัพท์น่ารู้`,
       do: `${lesson.activity || 'นักเรียนทำกิจกรรมฝึกปฏิบัติ'}${g ? ` จากนั้นเล่นเกม "${g.title}"` : ''} ครูเดินดูและให้คำแนะนำ`,
-      sum: `ครูและนักเรียนร่วมกันสรุป: ${(lesson.recap || []).join(' / ')} แล้วย้อนกลับไปตอบคำถามนำอีกครั้ง`,
+      sum: `ครูและนักเรียนร่วมกันสรุป: ${(lesson.recap || []).join(' / ')} แล้วย้อนกลับไปตอบคำถามตอนต้นชั่วโมงอีกครั้ง`,
       post: `นักเรียนทำแบบทดสอบหลังเรียนประจำบท เกณฑ์ผ่าน ${Math.ceil((lesson.quiz || []).length * PASS / 100)} ข้อ (ร้อยละ ${PASS}) ดูผลรายคนได้ที่หน้าผลการเรียน`
     };
     return `<details class="tplan"><summary>แผนการสอน 60 นาที (สำหรับครู)</summary><div class="tplan-in">
@@ -634,7 +639,7 @@ ${STAGES.map((st) => `<tr><td><b>${st.step}</b><br><span class="muted">${st.name
     const key = `${u.id}-${l}-${sid}`;
     if (sid === 'pre') {
       if (lquiz && lquiz.key === key && lquiz.done) return lessonQuizResult(u, l, lesson, 'pre');
-      if (lr.pre) return `<div class="score"><div class="big">${lr.pre.score}<small>/${lr.pre.total}</small></div><span class="chip">ทำแล้วเมื่อ ${thaiDate(lr.pre.at)}</span><p class="muted">แบบทดสอบก่อนเรียนทำได้คนละครั้ง</p><a class="btn primary" href="${base}-warm">ไปขั้นคำถามนำ →</a></div>`;
+      if (lr.pre) return `<div class="score"><div class="big">${lr.pre.score}<small>/${lr.pre.total}</small></div><span class="chip">ทำแล้วเมื่อ ${thaiDate(lr.pre.at)}</span><p class="muted">แบบทดสอบก่อนเรียนทำได้คนละครั้ง</p><a class="btn primary" href="${base}-warm">ไปขั้น${stagesOf(C)[1].name} →</a></div>`;
       return lessonQuizHTML(u, l, lesson, 'pre');
     }
     if (sid === 'warm') {
@@ -658,7 +663,7 @@ ${g ? `<a class="box game-link" href="#game-${g.id}"><span class="gl-emoji" aria
     if (sid === 'sum') {
       return `<section class="recap" style="margin-top:0"><h2>สรุปบทเรียน</h2><ul>${lesson.recap.map((x) => `<li>${x}</li>`).join('')}</ul></section>
 ${lesson.fact ? `<section class="box fact" style="margin-top:14px"><h2>เกร็ดความรู้</h2><p>${lesson.fact}</p></section>` : ''}
-<h3 style="font-size:var(--fs-2);margin-top:18px">ย้อนกลับไปตอบคำถามนำ</h3>
+<h3 style="font-size:var(--fs-2);margin-top:18px">ย้อนกลับไปตอบคำถามตอนต้นชั่วโมง</h3>
 <div class="warm-list">${(lesson.warmup || []).map((w, i) => `<div class="warm"><span class="wq-n" aria-hidden="true">?${i + 1}</span><div><p class="wq">${esc(w.q)}</p><p class="muted">${esc(w.guide)}</p></div></div>`).join('')}</div>`;
     }
     // post
@@ -676,6 +681,7 @@ ${lesson.fact ? `<section class="box fact" style="margin-top:14px"><h2>เกร
     const r = rec(u.id);
     const lr = lessonRec(u.id, l);
     const sid = stageId || defaultStage(lr);
+    const STAGES = stagesOf(C);
     const si = STAGES.findIndex((x) => x.id === sid);
     const st = STAGES[si];
     const base = `#${u.id}-l${l}`;

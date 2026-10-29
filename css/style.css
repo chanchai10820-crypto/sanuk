@@ -241,7 +241,7 @@ code { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; 
 .blk .go { font-family: var(--display); font-weight: 700; white-space: nowrap; font-size: var(--fs-0); background: rgba(0, 0, 0, 0.18); padding: 6px 12px; border-radius: 999px; }
 .u1 { --c: var(--u1); } .u2 { --c: var(--u2); } .u3 { --c: var(--u3); } .u4 { --c: var(--u4); } .u5 { --c: var(--u5); }
 /* หน่วยวิชาการงานอาชีพ */
-.c1 { --c: var(--u1); } .c2 { --c: var(--u5); } .c3 { --c: var(--u4); } .c4 { --c: var(--u2); }
+.c1 { --c: var(--u1); } .c2 { --c: var(--u5); } .c3 { --c: var(--u4); } .c4 { --c: var(--u2); } .c5 { --c: var(--u3); }
 
 .howto { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; counter-reset: how; }
 .howto li { list-style: none; counter-increment: how; display: grid; gap: 4px; }
