@@ -1499,5 +1499,21 @@ ${prev}
     askReset = false;
     render(true);
   });
+  // ปุ่มเต็มจอ แสดงเฉพาะเบราว์เซอร์ที่อนุญาตให้ใช้โหมดเต็มจอ
+  const fsBtn = document.getElementById('fs');
+  if (fsBtn && document.fullscreenEnabled) {
+    const syncFs = () => {
+      const on = !!document.fullscreenElement;
+      fsBtn.setAttribute('aria-pressed', String(on));
+      fsBtn.querySelector('span').textContent = on ? 'ออกจากเต็มจอ' : 'เต็มจอ';
+    };
+    fsBtn.hidden = false;
+    fsBtn.addEventListener('click', () => {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen().catch(() => {});
+    });
+    document.addEventListener('fullscreenchange', syncFs);
+    syncFs();
+  }
   render(false);
 })();
