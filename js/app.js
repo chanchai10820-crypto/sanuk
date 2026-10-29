@@ -12,7 +12,14 @@
 (function () {
   'use strict';
 
-  const C = window.COURSE;
+  // วิชาในเว็บ: วิทยาการคำนวณ (หน่วย u1–u5) และการงานอาชีพ (หน่วย c1–c4)
+  const COURSES = [window.COURSE, window.COURSE_CAREER].filter(Boolean);
+  COURSES.forEach((c) => c.units.forEach((u) => { u.course = c; }));
+  const unitById = (id) => {
+    for (const c of COURSES) { const u = c.units.find((x) => x.id === id); if (u) return u; }
+    return null;
+  };
+  let C = COURSES[0];   // วิชาที่กำลังเรียน
   const KEY = 'sanuk-p3-v1';
   const PASS = 60;
   const KO = ['ก', 'ข', 'ค', 'ง'];
@@ -23,6 +30,14 @@
   const app = document.getElementById('app');
 
   let state = load();
+  C = COURSES.find((c) => c.key === state.subject) || COURSES[0];
+  function setCourse(key) {
+    const next = COURSES.find((c) => c.key === key);
+    if (!next || next === C) return;
+    C = next;
+    state.subject = key;
+    save();
+  }
   let quiz = null;        // แบบทดสอบที่กำลังทำอยู่
   let temp = {};          // สถานะชั่วคราวของแบบฝึกหัดแต่ละข้อ
   let askReset = false;
@@ -89,8 +104,7 @@
   function thaiDate(ts) {
     try { return new Date(ts).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }); } catch (e) { return ''; }
   }
-  const unitNo = (u) => C.units.indexOf(u) + 1;
-  const unitBy = (n) => C.units[Number(n) - 1] || null;
+  const unitNo = (u) => u.course.units.indexOf(u) + 1;
 
   function stats(u) {
     const r = rec(u.id);
@@ -109,10 +123,10 @@
     if (!h || h === 'home') return { view: 'home' };
     if (h === 'course' || h === 'results' || h === 'games' || h === 'login') return { view: h };
     if ((m = h.match(/^game-([a-z]+)$/)) && GAMES.find((g) => g.id === m[1])) return { view: 'game', game: GAMES.find((g) => g.id === m[1]) };
-    if ((m = h.match(/^u(\d)$/)) && unitBy(m[1])) return { view: 'unit', u: unitBy(m[1]) };
-    if ((m = h.match(/^u(\d)-l(\d+)(?:-(pre|warm|learn|do|sum|post))?$/)) && unitBy(m[1]) && unitBy(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitBy(m[1]), l: Number(m[2]), stage: m[3] };
-    if ((m = h.match(/^u(\d)-(pre|post)$/)) && unitBy(m[1])) return { view: 'quiz', u: unitBy(m[1]), kind: m[2] };
-    if ((m = h.match(/^u(\d)-ex$/)) && unitBy(m[1])) return { view: 'ex', u: unitBy(m[1]) };
+    if ((m = h.match(/^([a-z]\d)$/)) && unitById(m[1])) return { view: 'unit', u: unitById(m[1]) };
+    if ((m = h.match(/^([a-z]\d)-l(\d+)(?:-(pre|warm|learn|do|sum|post))?$/)) && unitById(m[1]) && unitById(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitById(m[1]), l: Number(m[2]), stage: m[3] };
+    if ((m = h.match(/^([a-z]\d)-(pre|post)$/)) && unitById(m[1])) return { view: 'quiz', u: unitById(m[1]), kind: m[2] };
+    if ((m = h.match(/^([a-z]\d)-ex$/)) && unitById(m[1])) return { view: 'ex', u: unitById(m[1]) };
     return { view: 'home' };
   }
 
@@ -122,6 +136,9 @@
     leaveFns = [];
     current = parse();
     const v = current;
+    // เปิดหน้าของหน่วยหรือเกมในวิชาอื่น ให้สลับวิชาตาม
+    if (v.u) setCourse(v.u.course.key);
+    if (v.game) setCourse(unitById(v.game.unit).course.key);
     let html;
     if (!state.session && v.view !== 'course') html = loginPage();
     else if (v.view === 'login') html = loginPage();
@@ -180,14 +197,15 @@
   <section class="hello">
     <div class="stack">
       <p class="eyebrow">${C.subject} · ${C.grade}</p>
-      <h1>คิดเป็นขั้นตอน <em>สนุก</em>ได้ทุกบทเรียน</h1>
-      <p class="lead">เรียนกับน้องสนุก 5 หน่วย ตั้งแต่อัลกอริทึม การเขียนโปรแกรม Scratch การค้นหาและนำเสนอข้อมูล ไปจนถึงการใช้อินเทอร์เน็ตอย่างปลอดภัย มีแบบทดสอบ แบบฝึกหัด และเกมให้เล่นทุกหน่วย</p>
+      ${subjTabs()}
+      <h1>${C.hero}</h1>
+      <p class="lead">${C.lead}</p>
       <div class="row">
-        <a class="btn primary" href="#u1">เริ่มเรียนหน่วยที่ 1</a>
+        <a class="btn primary" href="#${C.units[0].id}">เริ่มเรียนหน่วยที่ 1</a>
         <a class="btn" href="#games">ลานเกม ${starText(stars.stars, stars.max)}</a>
       </div>
     </div>
-    ${art('mascot', '', 'hero-art')}
+    ${art(C.heroArt || 'mascot', '', 'hero-art')}
     <section class="panel profile">
       ${groupPanel()}
       <div class="overall">
@@ -203,7 +221,7 @@
       <span class="muted">${C.units.length} หน่วย · ${C.hours} ชั่วโมง</span>
     </div>
     <div class="script">
-      <div class="blk hat" style="z-index:10"><div><b>เมื่อเริ่มเรียน</b> เรียนจากหน่วยบนสุดลงมา เหมือนบล็อกคำสั่งใน Scratch ที่ทำงานจากบนลงล่าง</div></div>
+      <div class="blk hat" style="z-index:10"><div><b>เมื่อเริ่มเรียน</b> เรียนจากหน่วยบนสุดลงมาทีละหน่วย เหมือนบล็อกคำสั่งที่ทำงานจากบนลงล่าง</div></div>
       ${blocks}
     </div>
   </section>
@@ -213,7 +231,7 @@
     <ul class="howto">
       <li><b>ทดสอบก่อนเรียน</b><span>10 ข้อ ดูว่าเรารู้อะไรอยู่แล้ว ทำได้ครั้งเดียว</span></li>
       <li><b>เรียนรายบท</b><span>บทละ 1 ชั่วโมง: ทดสอบก่อน คำถามนำ เนื้อหา กิจกรรม สรุป ทดสอบหลัง</span></li>
-      <li><b>ทำแบบฝึกหัด</b><span>เรียงลำดับ จับคู่ เขียนคำสั่งพาแมวไปหาปลา</span></li>
+      <li><b>ทำแบบฝึกหัดและเล่นเกม</b><span>${C.key === 'cs' ? 'เรียงลำดับ จับคู่ เขียนคำสั่งพาแมวไปหาปลา' : 'เรียงลำดับ จับคู่ คัดแยกขยะ เลือกเครื่องมือให้ถูกงาน'}</span></li>
       <li><b>ทดสอบหลังเรียน</b><span>10 ข้อ เทียบคะแนนกับก่อนเรียน ดูเฉลยได้</span></li>
     </ul>
   </section>
@@ -232,7 +250,15 @@
 <ul class="who-list">${keys.map((k) => `<li>${esc(nameOf(k, true))}</li>`).join('')}</ul>
 <div class="row"><a class="btn ghost" href="#login">เปลี่ยนคนเรียน</a></div>`;
   }
+  function subjTabs() {
+    if (COURSES.length < 2) return '';
+    return `<div class="subj-tabs" role="group" aria-label="เลือกวิชา">${COURSES.map((c) => `<button type="button" class="${c === C ? 'on' : ''}" data-act="subject" data-key="${c.key}" aria-pressed="${c === C}">${c.short}</button>`).join('')}</div>`;
+  }
   function renderWho() {
+    const small = document.querySelector('.brand-name small');
+    if (small) small.textContent = `${C.short} ป.3`;
+    const foot = document.querySelector('.foot-in');
+    if (foot && C.ref) foot.textContent = C.ref;
     const el = document.getElementById('who');
     if (!el) return;
     const ss = state.session;
@@ -321,15 +347,16 @@
     }
     ['best', 'score', 'plays'].forEach((k) => { if (src[k] != null) dst[k] = Math.max(dst[k] || 0, src[k]); });
   }
+  const courseGames = () => GAMES.filter((g) => C.units.some((u) => u.id === g.unit));
   function totalStars(key) {
-    return GAMES.reduce((a, g) => { const s = gameStats(g, key); return { stars: a.stars + s.stars, max: a.max + s.max }; }, { stars: 0, max: 0 });
+    return courseGames().reduce((a, g) => { const s = gameStats(g, key); return { stars: a.stars + s.stars, max: a.max + s.max }; }, { stars: 0, max: 0 });
   }
   function starText(n, max) {
     return `<span class="star-count"><i aria-hidden="true">★</i> ${n}/${max}</span>`;
   }
   function gameCard(g) {
     const s = gameStats(g);
-    const u = C.units.find((x) => x.id === g.unit);
+    const u = unitById(g.unit);
     return `<a class="gcard ${g.unit}" href="#game-${g.id}">
   <span class="gcard-emoji" aria-hidden="true">${g.emoji}</span>
   <span class="gcard-body"><span class="eyebrow">หน่วยที่ ${unitNo(u)}</span><b>${g.title}</b><span class="muted">${g.desc}</span></span>
@@ -342,18 +369,19 @@
 <div class="wrap">
   <section class="games-hero">
     <div class="stack">
-      <p class="eyebrow">ลานเกม</p>
+      ${subjTabs()}
+      <p class="eyebrow">ลานเกม · ${C.subject}</p>
       <h1>เล่นเกม สะสมดาว</h1>
       <p class="lead muted">เกมฝึกคิดของทุกหน่วย เล่นซ้ำได้ ยิ่งใช้คำสั่งน้อยหรือตอบถูกมาก ยิ่งได้ดาวเยอะ</p>
       <p class="big-stars">${starText(t.stars, t.max)} <span class="muted">ดาวที่สะสมได้</span></p>
     </div>
     ${art('mascot')}
   </section>
-  <div class="gcards">${GAMES.map(gameCard).join('')}</div>
+  <div class="gcards">${courseGames().map(gameCard).join('')}</div>
 </div>`;
   }
   function gamePage(g) {
-    const u = C.units.find((x) => x.id === g.unit);
+    const u = unitById(g.unit);
     const n = unitNo(u);
     return `
 <div class="wrap ${g.unit}">
@@ -383,7 +411,11 @@
     u2: ['แบบฝึกหัดหน่วยที่ 2', 'เกมเต่าวาดรูป', 'เกมนักล่าบั๊ก', 'สร้างผลงาน Scratch ของตนเอง', 'นำเสนอผลงาน Scratch'],
     u3: ['แบบฝึกหัดหน่วยที่ 3 และเกมคัดแยกเว็บไซต์'],
     u4: [],
-    u5: ['แบบฝึกหัดหน่วยที่ 5 เกมฮีโร่ปลอดภัยออนไลน์ และเกมรหัสผ่านแข็งแรง']
+    u5: ['แบบฝึกหัดหน่วยที่ 5 เกมฮีโร่ปลอดภัยออนไลน์ และเกมรหัสผ่านแข็งแรง'],
+    c1: ['แบบฝึกหัดหน่วยที่ 1 และเกมแยกขยะให้ถูกถัง'],
+    c2: ['ฝึกพับเสื้อผ้าและถุงเท้า', 'ฝึกจัดโต๊ะอาหารและล้างจาน', 'ทำความสะอาดห้องเรียนตามใบตรวจเวร', 'ทำแซนด์วิชผักไข่และประเมินผลงาน', 'นำเสนอบันทึกงานบ้านที่บ้าน 1 สัปดาห์', 'แบบฝึกหัดหน่วยที่ 2 และเกมเครื่องมือนี้ใช้กับงานอะไร'],
+    c3: ['ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 1', 'ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 2', 'ดูแลผักและบันทึกการเจริญเติบโต สัปดาห์ที่ 3', 'ทำปุ๋ยหมักจากเศษผักและใบไม้', 'เก็บเกี่ยวผักและนำไปประกอบอาหาร', 'ทำแผนภูมิการเจริญเติบโตและนำเสนอ', 'แบบฝึกหัดหน่วยที่ 3'],
+    c4: ['ร่างแบบสิ่งประดิษฐ์จากวัสดุเหลือใช้ของตนเอง', 'ประดิษฐ์ผลงานของตนเอง ครั้งที่ 1', 'ประดิษฐ์ผลงานของตนเอง ครั้งที่ 2', 'จัดนิทรรศการและประเมินผลงาน', 'แบบฝึกหัดหน่วยที่ 4 และเกมปลอดภัยหรือไม่']
   };
   function hourPlan() {
     let h = 0;
@@ -404,6 +436,7 @@
     return `
 <div class="wrap">
   <div class="stack">
+    ${subjTabs()}
     <p class="eyebrow">โครงสร้างรายวิชา</p>
     <h1 style="font-size:var(--fs-4)">${C.subject} ${C.grade}</h1>
     <p class="muted">เวลาเรียน ${C.hours} ชั่วโมงต่อปี (ปรับได้ตามโครงสร้างเวลาของโรงเรียน)</p>
@@ -820,7 +853,7 @@ ${prev}
   <p>${p >= PASS ? (gain > 0 ? `เก่งขึ้นกว่าก่อนเรียน ${gain} คะแนน ยอดเยี่ยม!` : 'ผ่านเกณฑ์แล้ว เก่งมาก!') : 'ยังไม่ผ่านเกณฑ์ร้อยละ 60 ลองอ่านเฉลย ทบทวนบทเรียน แล้วทำใหม่อีกครั้ง'}</p>
   <div class="row" style="justify-content:center">
     <button class="btn" type="button" data-act="q-start" data-kind="post">ทำอีกครั้ง</button>
-    ${n < C.units.length ? `<a class="btn primary" href="#u${n + 1}">ไปหน่วยที่ ${n + 1}</a>` : `<a class="btn primary" href="#results">ดูผลการเรียน</a>`}
+    ${n < C.units.length ? `<a class="btn primary" href="#${C.units[n].id}">ไปหน่วยที่ ${n + 1}</a>` : `<a class="btn primary" href="#results">ดูผลการเรียน</a>`}
   </div>
 </div>
 <h2 style="font-size:var(--fs-3)">เฉลยและคำอธิบาย</h2>
@@ -1113,7 +1146,8 @@ ${prev}
     return `
 <div class="wrap">
   <div class="stack">
-    <p class="eyebrow">ผลการเรียน${ss && !ss.guest ? ' · ' + roomBy(ss.room).name : ''}</p>
+    ${subjTabs()}
+    <p class="eyebrow">ผลการเรียน ${C.subject}${ss && !ss.guest ? ' · ' + roomBy(ss.room).name : ''}</p>
     <h1 style="font-size:var(--fs-4)">${mine.length > 1 ? 'ผลการเรียนของกลุ่มเรา' : esc(nameOf(mine[0]))}</h1>
     ${mine.length > 1 ? `<ul class="who-list">${mine.map((k) => `<li>${esc(nameOf(k, true))}</li>`).join('')}</ul>` : ''}
   </div>
@@ -1139,7 +1173,7 @@ ${prev}
   </div>
   <section class="panel stack">
     <div class="row" style="justify-content:space-between"><h2>ดาวจากเกม</h2>${starText(totalStars().stars, totalStars().max)}</div>
-    <div class="gcards">${GAMES.map(gameCard).join('')}</div>
+    <div class="gcards">${courseGames().map(gameCard).join('')}</div>
   </section>
   <section class="panel stack">
     <h2>นักเรียนทุกคนที่เรียนบนเครื่องนี้</h2>
@@ -1168,7 +1202,7 @@ ${prev}
       return `<tr${mine.includes(k) ? ' class="me"' : ''}><td>${esc(nameOf(k))}</td>${cells}<td class="num"><b>${t.pre}</b></td><td class="num"><b>${t.post}</b></td><td class="num">${t.lessons}/${t.lessonMax}</td><td class="num">${t.stars.stars}</td></tr>`;
     }).join('');
     return `<div class="tbl-wrap"><table class="tbl roster-tbl">
-<thead><tr><th rowspan="2">นักเรียน</th>${head1}<th colspan="2" class="num">รวม (เต็ม 50)</th><th rowspan="2" class="num">บทที่<br>เรียนจบ</th><th rowspan="2" class="num">ดาว</th></tr>
+<thead><tr><th rowspan="2">นักเรียน</th>${head1}<th colspan="2" class="num">รวม (เต็ม ${C.units.reduce((x, u) => x + u.test.length, 0)})</th><th rowspan="2" class="num">บทที่<br>เรียนจบ</th><th rowspan="2" class="num">ดาว</th></tr>
 <tr>${head2}<th class="num sub">ก่อน</th><th class="num sub">หลัง</th></tr></thead>
 <tbody>${rows}</tbody></table></div>`;
   }
@@ -1410,6 +1444,12 @@ ${prev}
       temp = {};
       save();
       render(true);
+    },
+    'subject'(el) {
+      setCourse(el.dataset.key);
+      quiz = null;
+      temp = {};
+      render(false);
     },
     'reset-ask'() { askReset = true; render(false); },
     'reset-no'() { askReset = false; render(false); },

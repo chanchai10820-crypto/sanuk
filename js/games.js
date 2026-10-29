@@ -733,6 +733,104 @@
     render();
   }
 
+  /* ════════ เกมคัดแยก (ใช้ร่วมกันหลายเกม) ════════
+   * cfg = { cats: [{ id, label, color }], items: [{ e, t, cat, why }], prompt }
+   */
+  function sortGame(cfg) {
+    return function mount(root, ctx) {
+      let st;
+      const start = () => { st = { order: shuffle(cfg.items), i: 0, score: 0, pick: null }; };
+      function render() {
+        if (st.i >= st.order.length) {
+          const n = st.score;
+          const total = st.order.length;
+          const stars = n >= Math.ceil(total * 0.9) ? 3 : n >= Math.ceil(total * 0.7) ? 2 : 1;
+          if (!st.saved) { keepBest(ctx, stars, { score: Math.max(ctx.data.score || 0, n) }); st.saved = true; }
+          root.innerHTML = endScreen('คัดแยกครบแล้ว!', `ตอบถูก ${n} จาก ${total} ข้อ`, stars, 'again');
+          return;
+        }
+        const it = st.order[st.i];
+        const done = st.pick !== null;
+        const right = done && st.pick === it.cat;
+        const btns = cfg.cats.map((c) => `<button type="button" class="sort-btn${done && c.id === it.cat ? ' right' : ''}${done && st.pick === c.id && !right ? ' wrong' : ''}" data-g="pick" data-c="${c.id}" style="--bc:${c.color}"${done ? ' disabled' : ''}><span class="sort-sw" aria-hidden="true"></span>${c.label}</button>`).join('');
+        root.innerHTML = `
+<section class="panel g-stage">
+  <div class="g-head"><h2>ข้อ ${st.i + 1} / ${st.order.length}</h2><span class="chip">ถูก ${st.score}</span></div>
+  <p class="muted">${cfg.prompt}</p>
+  <div class="sort-card"><span class="sort-e" aria-hidden="true">${it.e}</span><b>${esc(it.t)}</b></div>
+  <div class="sort-btns">${btns}</div>
+  <div aria-live="polite">${done ? `<p class="feedback ${right ? 'ok' : 'bad'}">${right ? 'ถูกต้อง!' : 'ยังไม่ถูก'} ${esc(it.why)}</p><div class="row"><button type="button" class="btn primary" data-g="next">ต่อไป →</button></div>` : ''}</div>
+</section>`;
+      }
+      bind(root, {
+        pick(el) { st.pick = el.dataset.c; if (st.pick === st.order[st.i].cat) st.score++; render(); },
+        next() { st.i++; st.pick = null; render(); },
+        again() { start(); render(); }
+      });
+      start();
+      render();
+    };
+  }
+  const BINS = [
+    { id: 'g', label: 'ถังสีเขียว ขยะเปียก', color: '#2E9E5B' },
+    { id: 'y', label: 'ถังสีเหลือง รีไซเคิล', color: '#F2B705' },
+    { id: 'b', label: 'ถังสีน้ำเงิน ขยะทั่วไป', color: '#2F6BD6' },
+    { id: 'r', label: 'ถังสีแดง ขยะอันตราย', color: '#E5484D' }
+  ];
+  const TRASH = [
+    { e: '🍌', t: 'เปลือกกล้วย', cat: 'g', why: 'เปลือกผลไม้ย่อยสลายได้ เป็นขยะเปียก' },
+    { e: '🍚', t: 'เศษข้าวที่กินเหลือ', cat: 'g', why: 'เศษอาหารเป็นขยะเปียก นำไปทำปุ๋ยหมักได้' },
+    { e: '🍂', t: 'ใบไม้แห้ง', cat: 'g', why: 'ใบไม้ย่อยสลายได้ ใช้ทำปุ๋ยหมัก' },
+    { e: '🥤', t: 'ขวดน้ำพลาสติก', cat: 'y', why: 'ขวดพลาสติกนำไปรีไซเคิลได้' },
+    { e: '🥫', t: 'กระป๋องน้ำอัดลม', cat: 'y', why: 'กระป๋องอะลูมิเนียมรีไซเคิลได้' },
+    { e: '📰', t: 'หนังสือพิมพ์เก่า', cat: 'y', why: 'กระดาษรีไซเคิลได้' },
+    { e: '🍾', t: 'ขวดแก้ว', cat: 'y', why: 'ขวดแก้วหลอมทำขวดใหม่ได้' },
+    { e: '🍬', t: 'ซองขนมพลาสติก', cat: 'b', why: 'ซองขนมเปื้อนอาหารและรีไซเคิลยาก เป็นขยะทั่วไป' },
+    { e: '🍜', t: 'ถ้วยโฟมบะหมี่กึ่งสำเร็จรูป', cat: 'b', why: 'โฟมรีไซเคิลยาก เป็นขยะทั่วไป' },
+    { e: '🧻', t: 'กระดาษทิชชูใช้แล้ว', cat: 'b', why: 'ทิชชูใช้แล้วสกปรก รีไซเคิลไม่ได้' },
+    { e: '🔋', t: 'ถ่านไฟฉาย', cat: 'r', why: 'ถ่านไฟฉายมีสารเคมีอันตราย' },
+    { e: '💡', t: 'หลอดไฟเสีย', cat: 'r', why: 'หลอดไฟมีสารอันตรายและแตกบาดได้' },
+    { e: '🧴', t: 'กระป๋องสเปรย์', cat: 'r', why: 'กระป๋องสเปรย์อาจระเบิดได้ เป็นขยะอันตราย' }
+  ];
+  const WORK = [
+    { id: 'home', label: 'งานบ้าน', color: '#2F6BD6' },
+    { id: 'kitchen', label: 'งานครัว', color: '#C23A63' },
+    { id: 'farm', label: 'งานเกษตร', color: '#277A33' },
+    { id: 'craft', label: 'งานประดิษฐ์', color: '#A85A06' }
+  ];
+  const TOOLS = [
+    { e: '🧹', t: 'ไม้กวาดดอกหญ้า', cat: 'home', why: 'ใช้กวาดพื้นในบ้าน' },
+    { e: '🧺', t: 'ตะกร้าผ้า', cat: 'home', why: 'ใส่เสื้อผ้าที่จะซักหรือพับ' },
+    { e: '👔', t: 'ไม้แขวนเสื้อ', cat: 'home', why: 'แขวนเสื้อผ้าไม่ให้ยับ' },
+    { e: '🍽️', t: 'จานและช้อนกลาง', cat: 'kitchen', why: 'ใช้จัดโต๊ะอาหาร' },
+    { e: '🧽', t: 'ฟองน้ำล้างจาน', cat: 'kitchen', why: 'ใช้ล้างภาชนะ' },
+    { e: '🥄', t: 'ทัพพี', cat: 'kitchen', why: 'ใช้ตักแกงและข้าว' },
+    { e: '🪴', t: 'กระถางต้นไม้', cat: 'farm', why: 'ใช้ปลูกผักและต้นไม้' },
+    { e: '🌱', t: 'ช้อนปลูก', cat: 'farm', why: 'ใช้ขุดหลุมเล็กและตักดิน' },
+    { e: '🧤', t: 'ถุงมือทำสวน', cat: 'farm', why: 'ป้องกันมือขณะทำสวน' },
+    { e: '✂️', t: 'กรรไกรปลายมน', cat: 'craft', why: 'ใช้ตัดกระดาษในงานประดิษฐ์' },
+    { e: '🖍️', t: 'สีเทียน', cat: 'craft', why: 'ใช้ระบายสีตกแต่งชิ้นงาน' },
+    { e: '📏', t: 'ไม้บรรทัด', cat: 'craft', why: 'ใช้วัดและขีดเส้นก่อนตัด' }
+  ];
+  const SAFE = [
+    { id: 'safe', label: 'ปลอดภัย', color: '#2E9E5B' },
+    { id: 'risk', label: 'ไม่ปลอดภัย', color: '#E5484D' }
+  ];
+  const SAFETY = [
+    { e: '✂️', t: 'ส่งกรรไกรให้เพื่อนโดยหันด้ามจับให้', cat: 'safe', why: 'เพื่อนจับด้ามได้ ไม่โดนส่วนคม' },
+    { e: '🏃', t: 'วิ่งเล่นขณะถือกรรไกร', cat: 'risk', why: 'อาจล้มแล้วกรรไกรทิ่มตัวเองหรือเพื่อน' },
+    { e: '🧑‍🏫', t: 'ให้ผู้ใหญ่ใช้คัตเตอร์ตัดขวด', cat: 'safe', why: 'คัตเตอร์คมมาก ต้องให้ผู้ใหญ่ใช้' },
+    { e: '🧴', t: 'ปิดฝากาวทุกครั้งหลังใช้', cat: 'safe', why: 'กาวไม่หก ไม่แห้ง และไม่เข้าตา' },
+    { e: '🤪', t: 'หยอกล้อเพื่อนขณะถือเครื่องมือ', cat: 'risk', why: 'อาจทำให้เครื่องมือโดนคนอื่น' },
+    { e: '🔌', t: 'เสียบปลั๊กไฟขณะมือเปียก', cat: 'risk', why: 'อาจถูกไฟฟ้าดูด' },
+    { e: '🥛', t: 'ล้างกล่องนมให้สะอาดก่อนนำมาประดิษฐ์', cat: 'safe', why: 'ไม่มีกลิ่นและเชื้อรา' },
+    { e: '🔥', t: 'เปิดเตาแก๊สเองโดยไม่มีผู้ใหญ่', cat: 'risk', why: 'ไฟและแก๊สอันตราย ต้องมีผู้ใหญ่ดูแล' },
+    { e: '🧤', t: 'สวมถุงมือขณะถอนวัชพืช', cat: 'safe', why: 'ป้องกันหนามและแมลง' },
+    { e: '⛏️', t: 'แกว่งจอบเล่นในแปลงผัก', cat: 'risk', why: 'จอบคมและหนัก อาจโดนเพื่อน' },
+    { e: '🥃', t: 'เก็บเศษแก้วแตกด้วยมือเปล่า', cat: 'risk', why: 'เศษแก้วบาดมือได้ ให้ผู้ใหญ่ช่วย' },
+    { e: '🧼', t: 'ล้างมือหลังทำงานประดิษฐ์และงานเกษตร', cat: 'safe', why: 'ล้างกาว ดิน และเชื้อโรคออก' }
+  ];
+
   window.GAMES = [
     { id: 'cat', unit: 'u1', emoji: '🐱', title: 'แมวหาปลา', desc: 'เขียนคำสั่งลูกศรพาแมวไปหาปลา 8 ด่าน ด่านหลังใช้ทำซ้ำได้', mount: mountCat, summary: (d) => sumLevels(d, CAT_LEVELS.length) },
     { id: 'guess', unit: 'u1', emoji: '🔢', title: 'ทายเลขในใจ', desc: 'ทายเลขให้ถูกด้วยครั้งน้อยที่สุด ฝึกคิดแบบแบ่งครึ่ง', mount: mountGuess, summary: (d) => sumLevels(d, GUESS.length) },
@@ -741,8 +839,11 @@
     { id: 'web', unit: 'u3', emoji: '🔎', title: 'คัดแยกเว็บไซต์', desc: 'อ่านผลการค้นหา แล้วตัดสินว่าน่าเชื่อถือหรือไม่', mount: mountWeb, summary: bestOf },
     { id: 'data', unit: 'u4', emoji: '🧺', title: 'นักสำรวจข้อมูล', desc: 'นับผลไม้ ขีดรอยขีด สร้างแผนภูมิแท่ง และตอบคำถาม', mount: mountData, summary: bestOf },
     { id: 'hero', unit: 'u5', emoji: '🦸', title: 'ฮีโร่ปลอดภัยออนไลน์', desc: 'เลือกทางที่ปลอดภัยเมื่อเจอสถานการณ์บนอินเทอร์เน็ต', mount: mountHero, summary: bestOf },
-    { id: 'pass', unit: 'u5', emoji: '🔐', title: 'รหัสผ่านแข็งแรง', desc: 'เปรียบเทียบรหัสผ่านและทดลองดูความแข็งแรง', mount: mountPass, summary: bestOf }
+    { id: 'pass', unit: 'u5', emoji: '🔐', title: 'รหัสผ่านแข็งแรง', desc: 'เปรียบเทียบรหัสผ่านและทดลองดูความแข็งแรง', mount: mountPass, summary: bestOf },
+    { id: 'trash', unit: 'c1', emoji: '🗑️', title: 'แยกขยะให้ถูกถัง', desc: 'คัดแยกขยะ 13 ชิ้นลงถัง 4 สี เขียว เหลือง น้ำเงิน แดง', mount: sortGame({ cats: BINS, items: TRASH, prompt: 'ขยะชิ้นนี้ควรทิ้งถังสีอะไร' }), summary: bestOf },
+    { id: 'tools', unit: 'c2', emoji: '🧰', title: 'เครื่องมือนี้ใช้กับงานอะไร', desc: 'จับคู่เครื่องมือกับงานบ้าน งานครัว งานเกษตร และงานประดิษฐ์', mount: sortGame({ cats: WORK, items: TOOLS, prompt: 'เครื่องมือนี้ใช้กับงานประเภทใด' }), summary: bestOf },
+    { id: 'safe', unit: 'c4', emoji: '🦺', title: 'ปลอดภัยหรือไม่', desc: 'ตัดสินว่าการกระทำแต่ละอย่างปลอดภัยหรือไม่ปลอดภัย', mount: sortGame({ cats: SAFE, items: SAFETY, prompt: 'การกระทำนี้ปลอดภัยหรือไม่' }), summary: bestOf }
   ];
   // ข้อมูลเกม เปิดให้หน้าครูหรือสคริปต์ทดสอบอ่านได้
-  window.GAME_DATA = { CAT_LEVELS, GUESS, TURTLE, BUGS, WEBS, HERO, PAIRS };
+  window.GAME_DATA = { CAT_LEVELS, GUESS, TURTLE, BUGS, WEBS, HERO, PAIRS, TRASH, TOOLS, SAFETY };
 })();

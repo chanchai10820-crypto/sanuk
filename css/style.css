@@ -240,6 +240,8 @@ code { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; 
 .blk .chips .chip.done { background: var(--surface); color: var(--ink); }
 .blk .go { font-family: var(--display); font-weight: 700; white-space: nowrap; font-size: var(--fs-0); background: rgba(0, 0, 0, 0.18); padding: 6px 12px; border-radius: 999px; }
 .u1 { --c: var(--u1); } .u2 { --c: var(--u2); } .u3 { --c: var(--u3); } .u4 { --c: var(--u4); } .u5 { --c: var(--u5); }
+/* หน่วยวิชาการงานอาชีพ */
+.c1 { --c: var(--u1); } .c2 { --c: var(--u5); } .c3 { --c: var(--u4); } .c4 { --c: var(--u2); }
 
 .howto { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; counter-reset: how; }
 .howto li { list-style: none; counter-increment: how; display: grid; gap: 4px; }
@@ -935,3 +937,23 @@ button.sb-b, button.sb-chead { border: 0; font: inherit; font-weight: 500; text-
   .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tplan-cols, .lq .opts { grid-template-columns: minmax(0, 1fr); }
 }
+.a-metal { fill: #A7B1C2; }
+.a-thickarrow { stroke-width: 6; stroke: var(--art-ok); }
+.a-cutline { fill: none; stroke: var(--art-bad); stroke-width: 3; stroke-dasharray: 5 4; }
+.sort-card { display: grid; justify-items: center; gap: 6px; padding: 22px; border-radius: 16px; background: var(--surface-2); text-align: center; }
+.sort-card b { font-family: var(--display); font-size: var(--fs-3); }
+.sort-e { font-size: 3.6rem; line-height: 1; }
+.sort-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.sort-btn {
+  display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 14px; border-radius: 12px; cursor: pointer; text-align: left;
+  border: 2px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 700; font-size: 1.05rem;
+}
+.sort-btn:hover { border-color: var(--bc); }
+.sort-sw { flex: none; width: 22px; height: 26px; border-radius: 4px 4px 7px 7px; background: var(--bc); border: 2px solid var(--art-line); }
+.sort-btn.right { border-color: var(--ok); background: var(--ok-bg); }
+.sort-btn.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.sort-btn[disabled] { cursor: default; }
+.subj-tabs { justify-self: start; width: max-content; max-width: 100%; display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); flex-wrap: wrap; }
+.subj-tabs button { border: 0; background: none; padding: 6px 16px; border-radius: 999px; cursor: pointer; font-family: var(--display); font-weight: 700; color: var(--muted); font-size: var(--fs-1); }
+.subj-tabs button.on { background: var(--ink); color: var(--bg); }
+ul.checklist { list-style: none; padding-left: 0 !important; }

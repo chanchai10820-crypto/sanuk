@@ -345,6 +345,175 @@ ${[0, 1, 2, 3].map((i) => `<rect class="a-ok" x="86" y="${54 + i * 22}" width="1
     }
   };
 
+  /* ═════════ ภาพประกอบวิชาการงานอาชีพ ═════════ */
+  const cycle4 = (labels) => `
+<circle class="a-ring" cx="160" cy="115" r="78"/>
+<path class="a-arrow" d="M214 58 a78 78 0 0 1 22 40"/>
+<path class="a-arrow" d="M230 160 a78 78 0 0 1 -38 30"/>
+<path class="a-arrow" d="M110 175 a78 78 0 0 1 -30 -38"/>
+<path class="a-arrow" d="M92 72 a78 78 0 0 1 40 -30"/>
+${labels.map(([t, x, y, c], i) => `<rect class="${c}" x="${x - 54}" y="${y - 18}" width="108" height="36" rx="18"/><text class="a-t a-tw a-mid" x="${x}" y="${y + 6}">${i + 1}. ${t}</text>`).join('')}`;
+  const pot = (x, y, w, h) => `<path class="a-u2 a-o" d="M${x} ${y} h${w} l-${w * 0.12} ${h} h-${w * 0.76} z"/><rect class="a-u2 a-o" x="${x - 4}" y="${y - 8}" width="${w + 8}" height="10" rx="3"/>`;
+  const leafy = (cx, base, hgt) => `<path class="a-stem" d="M${cx} ${base} v-${hgt}"/>
+<ellipse class="a-leaf a-o" cx="${cx - 12}" cy="${base - hgt * 0.55}" rx="13" ry="6" transform="rotate(-30 ${cx - 12} ${base - hgt * 0.55})"/>
+<ellipse class="a-leaf a-o" cx="${cx + 12}" cy="${base - hgt * 0.75}" rx="13" ry="6" transform="rotate(30 ${cx + 12} ${base - hgt * 0.75})"/>
+<ellipse class="a-leaf a-o" cx="${cx}" cy="${base - hgt - 6}" rx="7" ry="11"/>`;
+  const can = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s || 1})"><rect class="a-u1 a-o" x="0" y="10" width="48" height="40" rx="6"/><path class="a-u1 a-o" d="M46 22 l34 -18 l4 6 l-34 20 z"/><circle class="a-u1 a-o" cx="84" cy="6" r="6"/><path class="a-line" d="M8 10 q16 -22 32 0"/></g>`;
+  const drops = (x, y) => `<g class="a-fish">${[0, 1, 2].map((i) => `<ellipse cx="${x + i * 8}" cy="${y + i * 10}" rx="2.4" ry="4"/>`).join('')}</g>`;
+
+  Object.assign(ART, {
+    helping: {
+      alt: 'แมวถือไม้กวาดหน้าบ้าน มีป้ายงานช่วยเหลือตนเอง ครอบครัว และส่วนรวม',
+      svg: svg(320, 200, `
+<path class="a-u5 a-o" d="M150 70 l60 -44 l60 44 z"/>
+<rect class="a-paper a-o" x="160" y="70" width="100" height="90"/>
+<rect class="a-board a-o" x="198" y="112" width="24" height="48"/>
+<rect class="a-sky a-o" x="170" y="84" width="22" height="20"/><rect class="a-sky a-o" x="228" y="84" width="22" height="20"/>
+<rect class="a-soft" x="10" y="160" width="300" height="10" rx="5"/>
+${cat(22, 52, 0.95)}
+<path class="a-trunk" d="M120 70 L104 150"/><path class="a-hat a-o" d="M96 146 l20 4 l-6 22 l-24 -6 z"/>
+${[['ตนเอง', 'a-u1', 20], ['ครอบครัว', 'a-u2', 120], ['ส่วนรวม', 'a-u4', 230]].map(([t, c, x]) => `<rect class="${c}" x="${x}" y="176" width="80" height="22" rx="11"/>${label(x + 40, 192, t, 'a-tw a-mid a-small')}`).join('')}`)
+    },
+    workflow: {
+      alt: 'วงจรกระบวนการทำงาน 4 ขั้น: วิเคราะห์งาน วางแผน ปฏิบัติงาน ประเมินผล',
+      svg: svg(320, 230, `${cycle4([['วิเคราะห์งาน', 160, 36, 'a-u1'], ['วางแผน', 244, 115, 'a-u2'], ['ปฏิบัติงาน', 160, 196, 'a-u4'], ['ประเมินผล', 76, 115, 'a-u5']])}
+<g transform="translate(138 92) scale(.44)">${cat(0, 0, 1)}</g>`)
+    },
+    habits: {
+      alt: 'ลูกศรวน 3 ทิศ Reduce Reuse Recycle และถังขยะ 4 สี เขียว เหลือง น้ำเงิน แดง',
+      svg: svg(320, 210, `
+<path class="a-arrow a-thickarrow" d="M110 40 L160 30 L176 74"/>
+<path class="a-arrow a-thickarrow" d="M190 100 L170 150 L120 140"/>
+<path class="a-arrow a-thickarrow" d="M96 120 L70 76 L100 46"/>
+${label(150, 22, 'Reduce', 'a-mid a-bold')}${label(212, 150, 'Reuse', 'a-mid a-bold')}${label(56, 132, 'Recycle', 'a-mid a-bold')}
+<circle class="a-leaf" cx="135" cy="92" r="16"/><path class="a-checkw a-thinck" d="M128 92 l5 5 l10 -11"/>
+${[['#2E9E5B', 'เปียก'], ['#F2B705', 'รีไซเคิล'], ['#2F6BD6', 'ทั่วไป'], ['#E5484D', 'อันตราย']].map(([c, t], i) => `<g transform="translate(${226 + (i % 2) * 46} ${20 + Math.floor(i / 2) * 82})"><rect x="4" y="0" width="34" height="8" rx="3" style="fill:${c}"/><path d="M2 10 h38 l-4 46 h-30 z" style="fill:${c}" class="a-o"/>${label(21, 74, t, 'a-mid a-small')}</g>`).join('')}`)
+    },
+    clothes: {
+      alt: 'เสื้อยืดแขวนบนไม้แขวนเสื้อ กองเสื้อที่พับเรียบร้อย และถุงเท้าพับเป็นคู่',
+      svg: svg(320, 200, `
+<path class="a-line" d="M20 20 H300"/>
+<path class="a-line" d="M90 20 v12 q0 8 -8 8 M82 40 l-46 26 h108 z"/>
+<path class="a-u1 a-o" d="M50 66 l20 -14 q20 14 40 0 l20 14 l-10 20 l-10 -6 v74 h-40 v-74 l-10 6 z"/>
+${[0, 1, 2].map((i) => `<rect class="${['a-u3', 'a-u4', 'a-u5'][i]} a-o" x="168" y="${142 - i * 24}" width="96" height="22" rx="4"/><path class="a-line a-thin" d="M188 ${150 - i * 24} h56"/>`).join('')}
+<path class="a-paper a-o" d="M272 150 v-30 h18 v24 l12 6 v10 h-30 z"/><path class="a-u2" d="M272 122 h18 v6 h-18 z"/>
+<path class="a-hat a-o" d="M230 40 l8 -10 l8 10 v10 h-16 z"/>`)
+    },
+    tidy: {
+      alt: 'ชั้นวางหนังสือที่จัดเป็นระเบียบ กล่องติดป้าย ไม้กวาดและที่ตักผง',
+      svg: svg(320, 200, `
+<rect class="a-board a-o" x="20" y="20" width="160" height="160" rx="6"/>
+${[70, 120].map((y) => `<rect class="a-ink" x="20" y="${y}" width="160" height="6"/>`).join('')}
+${[0, 1, 2, 3, 4, 5].map((i) => `<rect class="a-u${(i % 5) + 1} a-o" x="${30 + i * 14}" y="${30 + (i % 2) * 6}" width="12" height="${40 - (i % 2) * 6}" rx="2"/>`).join('')}
+<rect class="a-paper a-o" x="30" y="84" width="64" height="36" rx="4"/>${label(62, 107, 'ดินสอ', 'a-mid a-small')}
+<rect class="a-paper a-o" x="104" y="84" width="64" height="36" rx="4"/>${label(136, 107, 'สีไม้', 'a-mid a-small')}
+<rect class="a-paper a-o" x="30" y="134" width="138" height="38" rx="4"/>${label(99, 158, 'ของเล่น', 'a-mid a-small')}
+<path class="a-trunk" d="M240 30 L230 140"/><path class="a-hat a-o" d="M216 136 l30 4 l-4 40 l-34 -4 z"/>
+<path class="a-u1 a-o" d="M262 150 h40 l-6 30 h-34 z"/><rect class="a-ink" x="276" y="128" width="6" height="24"/>`)
+    },
+    dining: {
+      alt: 'การจัดโต๊ะอาหาร จานตรงกลาง ส้อมด้านซ้าย ช้อนด้านขวา และแก้วน้ำด้านขวาบน',
+      svg: svg(320, 200, `
+<rect class="a-soft" x="10" y="10" width="300" height="180" rx="14"/>
+<circle class="a-paper a-o" cx="160" cy="110" r="56"/><circle class="a-soft" cx="160" cy="110" r="38"/>
+<g transform="translate(78 64)"><rect class="a-metal a-o" x="6" y="30" width="8" height="70" rx="3"/><path class="a-metal a-o" d="M0 0 v28 q10 8 20 0 v-28 h-4 v22 h-3 v-22 h-6 v22 h-3 v-22 z"/></g>
+<g transform="translate(228 64)"><rect class="a-metal a-o" x="6" y="30" width="8" height="70" rx="3"/><ellipse class="a-metal a-o" cx="10" cy="14" rx="10" ry="16"/></g>
+<path class="a-sky a-o" d="M254 22 h30 l-4 40 h-22 z"/>
+${label(88, 186, 'ส้อม', 'a-mid a-small')}${label(160, 186, 'จาน', 'a-mid a-small')}${label(238, 186, 'ช้อน', 'a-mid a-small')}${label(296, 78, 'แก้ว', 'a-end a-small')}`)
+    },
+    snack: {
+      alt: 'แซนด์วิชผักไข่วางบนจาน ข้าง ๆ มีสบู่และหยดน้ำ หมายถึงล้างมือก่อนทำอาหาร',
+      svg: svg(320, 200, `
+<ellipse class="a-paper a-o" cx="140" cy="160" rx="110" ry="26"/>
+<path class="a-egg a-o" d="M50 140 l90 -50 l90 50 z" style="fill:#F2D3A0"/>
+<path class="a-leaf a-o" d="M54 132 q20 -12 40 0 q20 -12 40 0 q20 -12 40 0 q20 -12 50 0 l-80 -36 z"/>
+<path class="a-yolk a-o" d="M70 122 l70 -38 l70 38 z" style="fill:#FFE27A"/>
+<path class="a-egg a-o" d="M60 116 l80 -44 l80 44 z" style="fill:#F2D3A0"/>
+<rect class="a-u1 a-o" x="252" y="40" width="46" height="30" rx="10"/>${label(275, 60, 'สบู่', 'a-tw a-mid a-small')}
+${drops(262, 84)}`)
+    },
+    garden: {
+      alt: 'กระถางผักสวนครัว บัวรดน้ำกำลังรดน้ำ และดวงอาทิตย์',
+      svg: svg(320, 200, `
+<circle class="a-hat" cx="270" cy="40" r="22"/>
+${pot(60, 120, 90, 60)}${leafy(90, 116, 54)}${leafy(122, 116, 40)}
+${can(170, 60, 1)}${drops(250, 84)}
+<rect class="a-soft" x="10" y="182" width="300" height="8" rx="4"/>`)
+    },
+    farmtools: {
+      alt: 'เครื่องมือเกษตรขนาดเล็ก ช้อนปลูก ส้อมพรวน บัวรดน้ำ และถุงมือ พร้อมป้ายชื่อ',
+      svg: svg(340, 200, `
+<g transform="translate(20 20)"><rect class="a-board a-o" x="16" y="0" width="14" height="56" rx="6"/><path class="a-metal a-o" d="M10 56 h26 v30 q-13 26 -26 0 z"/></g>
+<g transform="translate(100 20)"><rect class="a-board a-o" x="16" y="0" width="14" height="56" rx="6"/><path class="a-metal a-o" d="M6 56 h34 v8 h-6 v30 h-4 v-30 h-4 v30 h-4 v-30 h-4 v30 h-4 v-30 h-4 z"/></g>
+${can(180, 34, 1)}
+<g transform="translate(286 30)"><path class="a-hat a-o" d="M4 60 v-34 q0 -6 6 -6 v-14 q0 -6 6 -6 q6 0 6 6 v-6 q0 -6 6 -6 q6 0 6 6 v6 q0 -6 6 -6 q6 0 6 6 v40 q0 14 -14 14 h-20 q-14 0 -14 -6 z"/></g>
+${[['ช้อนปลูก', 43], ['ส้อมพรวน', 123], ['บัวรดน้ำ', 222], ['ถุงมือ', 310]].map(([t, x]) => `<rect class="a-soft" x="${x - 38}" y="150" width="76" height="26" rx="13"/>${label(x, 168, t, 'a-mid a-small')}`).join('')}`)
+    },
+    planting: {
+      alt: 'ปลูกผักบุ้งในขวดพลาสติก 3 ระยะ วันที่ 1 หยอดเมล็ด วันที่ 7 ต้นงอก และวันที่ 25 พร้อมเก็บ',
+      svg: svg(320, 190, `
+${[0, 1, 2].map((i) => `<g transform="translate(${18 + i * 102} 0)">
+<path class="a-sky a-o" d="M6 90 h80 v70 q0 10 -10 10 h-60 q-10 0 -10 -10 z" opacity=".7"/>
+<rect class="a-soil" x="10" y="110" width="72" height="56" rx="4"/>
+${i === 0 ? '<ellipse class="a-seed a-o" cx="30" cy="108" rx="5" ry="3"/><ellipse class="a-seed a-o" cx="60" cy="108" rx="5" ry="3"/>' : ''}
+${i === 1 ? leafy(34, 110, 18) + leafy(60, 110, 14) : ''}
+${i === 2 ? leafy(26, 110, 52) + leafy(46, 110, 60) + leafy(66, 110, 48) : ''}
+${label(46, 186, ['วันที่ 1', 'วันที่ 7', 'วันที่ 25'][i], 'a-mid a-bold')}</g>`).join('')}
+<path class="a-arrow" d="M106 140 h12"/><path class="a-arrow" d="M208 140 h12"/>`)
+    },
+    plantcare: {
+      alt: 'ต้นผักในกระถางข้างไม้บรรทัดวัดความสูง และแผนภูมิแท่งบันทึกความสูงที่เพิ่มขึ้น',
+      svg: svg(320, 200, `
+${pot(30, 140, 70, 46)}${leafy(65, 136, 80)}
+<rect class="a-hat a-o" x="116" y="40" width="20" height="140" rx="2"/>
+${[0, 1, 2, 3, 4, 5, 6].map((i) => `<path class="a-line a-thin" d="M116 ${170 - i * 20} h${i % 2 ? 6 : 10}"/>`).join('')}
+<path class="a-axis" d="M176 40 V170 H306"/>
+${[10, 32, 64, 104].map((h, i) => `<rect class="a-leaf" x="${188 + i * 28}" y="${170 - h}" width="18" height="${h}" rx="2"/>`).join('')}
+${label(241, 190, 'ความสูงทุก 3 วัน', 'a-mid a-small')}`)
+    },
+    crafttools: {
+      alt: 'เครื่องมืองานประดิษฐ์ กรรไกรปลายมน กาว ไม้บรรทัด ดินสอ และเทปกาว',
+      svg: svg(340, 200, `
+<g transform="translate(20 30)"><circle class="a-u5 a-o" cx="14" cy="100" r="13"/><circle class="a-u5 a-o" cx="48" cy="100" r="13"/><path class="a-metal a-o" d="M20 88 L44 10 q4 -4 6 2 L28 90 z"/><path class="a-metal a-o" d="M42 88 L18 10 q-4 -4 -6 2 L34 90 z"/></g>
+<g transform="translate(96 40)"><rect class="a-paper a-o" x="0" y="20" width="40" height="80" rx="8"/><path class="a-u3 a-o" d="M8 20 v-12 h24 v12 z"/><path class="a-hat a-o" d="M14 8 l6 -8 l6 8 z"/>${label(20, 66, 'กาว', 'a-mid a-small')}</g>
+<g transform="translate(150 60)"><rect class="a-hat a-o" x="0" y="0" width="140" height="26" rx="3"/>${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((i) => `<path class="a-line a-thin" d="M${8 + i * 9.5} 0 v${i % 2 ? 6 : 10}"/>`).join('')}</g>
+<g transform="translate(150 110) rotate(-8)"><rect class="a-u2 a-o" x="0" y="0" width="110" height="16" rx="3"/><path class="a-skin a-o" d="M110 0 l20 8 l-20 8 z"/><path class="a-ink" d="M124 6 l6 2 l-6 2 z"/></g>
+<g transform="translate(284 130)"><circle class="a-sky a-o" cx="20" cy="20" r="22"/><circle class="a-paper a-o" cx="20" cy="20" r="9"/></g>`)
+    },
+    bottlecraft: {
+      alt: 'ขวดพลาสติกถูกตัดตามเส้นประ แล้วพันกระดาษสีกลายเป็นที่ใส่ดินสอ',
+      svg: svg(320, 200, `
+<path class="a-sky a-o" d="M40 40 q0 -10 10 -14 v-12 h20 v12 q10 4 10 14 v140 q0 8 -8 8 h-24 q-8 0 -8 -8 z" opacity=".75"/>
+<rect class="a-u1 a-o" x="50" y="6" width="20" height="10" rx="2"/>
+<path class="a-dash" d="M30 110 H90"/>${label(60, 104, 'ตัดตรงนี้', 'a-mid a-small')}
+<path class="a-arrow" d="M110 120 h40"/>
+<g transform="translate(170 40)">
+${[0, 1, 2].map((i) => `<g transform="rotate(${-10 + i * 10} ${40 + i * 12} 70)"><rect class="a-u${i + 2} a-o" x="${32 + i * 12}" y="0" width="10" height="80" rx="2"/><path class="a-skin a-o" d="M${32 + i * 12} 0 l5 -12 l5 12 z"/></g>`).join('')}
+<path class="a-u5 a-o" d="M10 60 h100 v80 q0 8 -8 8 h-84 q-8 0 -8 -8 z"/>
+<path class="a-line a-thin" d="M18 90 h84 M18 116 h84"/>
+<circle class="a-hat" cx="40" cy="104" r="6"/><circle class="a-paper" cx="80" cy="104" r="6"/>
+</g>`)
+    },
+    pinwheel: {
+      alt: 'กระดาษสี่เหลี่ยมพับแนวทแยงและตัดไม่ถึงกลาง แล้วพับมุมเป็นกังหันลมติดกับหลอด',
+      svg: svg(320, 200, `
+<rect class="a-paper a-o" x="20" y="40" width="110" height="110"/>
+<path class="a-line a-thin" d="M20 40 L130 150 M130 40 L20 150"/>
+<path class="a-cutline" d="M20 40 L62 82 M130 40 L88 82 M20 150 L62 108 M130 150 L88 108"/>
+<circle class="a-ink" cx="75" cy="95" r="3"/>
+${label(75, 176, 'ตัดตามเส้นแดง', 'a-mid a-small')}
+<path class="a-arrow" d="M146 95 h30"/>
+<g transform="translate(240 80)">
+<path class="a-u5 a-o" d="M0 0 L0 -56 Q30 -40 0 0 z"/>
+<path class="a-u1 a-o" d="M0 0 L56 0 Q40 30 0 0 z"/>
+<path class="a-u4 a-o" d="M0 0 L0 56 Q-30 40 0 0 z"/>
+<path class="a-hat a-o" d="M0 0 L-56 0 Q-40 -30 0 0 z"/>
+<circle class="a-ink" cx="0" cy="0" r="5"/>
+<rect class="a-u2 a-o" x="-4" y="6" width="8" height="110" rx="3"/>
+</g>`)
+    }
+  });
+
   window.ART = ART;
   window.artFigure = function (name, caption, cls) {
     const a = ART[name];
