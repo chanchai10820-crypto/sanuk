@@ -18,6 +18,7 @@
   const KO = ['ก', 'ข', 'ค', 'ง'];
   const { ARROW, MOVE, esc, shuffle, reduceMotion, boardHTML } = window.Kit;
   const GAMES = window.GAMES || [];
+  const ROSTER = window.ROSTER || { rooms: [] };
   const art = window.artFigure || (() => '');
   const app = document.getElementById('app');
 
@@ -26,20 +27,56 @@
   let temp = {};          // สถานะชั่วคราวของแบบฝึกหัดแต่ละข้อ
   let askReset = false;
   let leaveFns = [];      // ฟังก์ชันเก็บกวาดของเกม (เช่น หยุดตัวจับเวลา) เมื่อเปลี่ยนหน้า
+  let pick = { room: null, nos: [] };   // ห้องและเลขที่ที่กำลังเลือกในหน้าเลือกชื่อ
+  const MAX_GROUP = 6;
 
-  /* ───────── ข้อมูลที่บันทึก ───────── */
-  function fresh() { return { profile: { name: '', room: '', no: '' }, units: {}, games: {} }; }
+  /* ───────── ข้อมูลที่บันทึก ─────────
+   * state.session   กลุ่มที่นั่งเรียนเครื่องนี้ { room: '3-5', nos: [3, 12] } หรือ { guest: true }
+   * state.learners  ผลการเรียนแยกรายคน คีย์ '3-5#12' (หรือ 'guest') = { units, games }
+   * คอมพิวเตอร์ 1 เครื่องนั่งเรียนด้วยกันได้หลายคน ผลจะบันทึกให้ทุกคนในกลุ่ม
+   */
+  function fresh() { return { session: null, learners: {} }; }
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(KEY));
-      if (s && s.units && s.profile) { s.games = s.games || {}; return s; }
+      if (s && s.learners) return s;
+      // ข้อมูลรุ่นแรก (ยังไม่มีการเลือกชื่อ) ย้ายไปเป็นผู้เรียนทั่วไป
+      if (s && s.units) return { session: null, learners: { guest: { units: s.units, games: s.games || {} } } };
     } catch (e) { /* ใช้ค่าเริ่มต้น */ }
     return fresh();
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* เบราว์เซอร์ไม่ให้บันทึก */ }
   }
-  function rec(uid) { return state.units[uid] || (state.units[uid] = { lessons: {}, ex: {} }); }
+  const roomBy = (id) => ROSTER.rooms.find((r) => r.id === id);
+  const studentOf = (room, no) => { const r = roomBy(room); return r && r.students.find((x) => x.no === no); };
+  function members() {
+    const ss = state.session;
+    return !ss || ss.guest ? ['guest'] : ss.nos.map((n) => `${ss.room}#${n}`);
+  }
+  function learner(key) { return state.learners[key] || (state.learners[key] = { units: {}, games: {} }); }
+  function unitOf(key, uid) { const L = learner(key); return L.units[uid] || (L.units[uid] = { lessons: {}, ex: {} }); }
+  // มุมมองสำหรับแสดงผล ใช้ผลของคนแรกในกลุ่ม แต่นับว่าทำแบบทดสอบก่อนเรียนแล้วเมื่อทุกคนในกลุ่มทำแล้วเท่านั้น
+  function rec(uid) {
+    const keys = members();
+    const r = unitOf(keys[0], uid);
+    return Object.assign({}, r, { pre: keys.every((k) => unitOf(k, uid).pre) ? r.pre : undefined });
+  }
+  // บันทึกผลให้ทุกคนในกลุ่ม
+  function eachUnit(uid, fn) { members().forEach((k) => fn(unitOf(k, uid))); save(); }
+  function nameOf(key, short) {
+    if (key === 'guest') return 'ผู้เรียนทั่วไป';
+    const [room, no] = key.split('#');
+    const st = studentOf(room, Number(no));
+    if (!st) return key;
+    return short ? `${st.no}. ${st.n}` : `${roomBy(room).name} เลขที่ ${st.no} ${st.t}${st.n}`;
+  }
+  function learnersOnDevice() {
+    const order = (k) => (k === 'guest' ? [999, 0] : [ROSTER.rooms.findIndex((r) => r.id === k.split('#')[0]), Number(k.split('#')[1])]);
+    return Object.keys(state.learners)
+      .filter((k) => { const L = state.learners[k]; return Object.keys(L.units).length || Object.keys(L.games || {}).length; })
+      .sort((a, b) => { const x = order(a); const y = order(b); return x[0] - y[0] || x[1] - y[1]; });
+  }
 
   /* ───────── ตัวช่วย ───────── */
   const pct = (s, t) => (t ? Math.round((s * 100) / t) : 0);
@@ -70,7 +107,7 @@
     const h = location.hash.replace(/^#/, '');
     let m;
     if (!h || h === 'home') return { view: 'home' };
-    if (h === 'course' || h === 'results' || h === 'games') return { view: h };
+    if (h === 'course' || h === 'results' || h === 'games' || h === 'login') return { view: h };
     if ((m = h.match(/^game-([a-z]+)$/)) && GAMES.find((g) => g.id === m[1])) return { view: 'game', game: GAMES.find((g) => g.id === m[1]) };
     if ((m = h.match(/^u(\d)$/)) && unitBy(m[1])) return { view: 'unit', u: unitBy(m[1]) };
     if ((m = h.match(/^u(\d)-l(\d+)$/)) && unitBy(m[1]) && unitBy(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitBy(m[1]), l: Number(m[2]) };
@@ -86,7 +123,9 @@
     current = parse();
     const v = current;
     let html;
-    if (v.view === 'course') html = coursePage();
+    if (!state.session && v.view !== 'course') html = loginPage();
+    else if (v.view === 'login') html = loginPage();
+    else if (v.view === 'course') html = coursePage();
     else if (v.view === 'games') html = gamesPage();
     else if (v.view === 'game') html = gamePage(v.game);
     else if (v.view === 'results') html = resultsPage();
@@ -97,7 +136,8 @@
     else html = homePage();
     app.innerHTML = html;
     enhance(app);
-    if (v.view === 'game') mountGame(v.game);
+    if (v.view === 'game' && state.session) mountGame(v.game);
+    renderWho();
     const navKey = v.view === 'game' ? 'games' : ['course', 'results', 'games'].includes(v.view) ? v.view : 'home';
     document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('on', a.dataset.nav === navKey));
     if (scrollTop) {
@@ -111,7 +151,6 @@
     return `<span class="chip${on ? ' done' : ''}">${label} ${value}</span>`;
   }
   function homePage() {
-    const p = state.profile;
     const all = C.units.map(stats);
     const overall = Math.round(all.reduce((a, s) => a + s.progress, 0) / all.length);
     const stars = totalStars();
@@ -149,19 +188,13 @@
       </div>
     </div>
     ${art('mascot', '', 'hero-art')}
-    <form class="panel profile" id="profile" autocomplete="off">
-      <h2 id="hello-name">${p.name ? 'สวัสดี ' + esc(p.name) : 'เขียนชื่อก่อนเริ่มเรียน'}</h2>
-      <div class="fields">
-        <label class="field">ชื่อ-นามสกุล<input id="pf-name" data-pf="name" value="${esc(p.name)}" placeholder="เช่น เด็กหญิงมะลิ ใจดี"></label>
-        <label class="field">ชั้น<input id="pf-room" data-pf="room" value="${esc(p.room)}" placeholder="ป.3/1"></label>
-        <label class="field">เลขที่<input id="pf-no" data-pf="no" value="${esc(p.no)}" inputmode="numeric" placeholder="12"></label>
-      </div>
+    <section class="panel profile">
+      ${groupPanel()}
       <div class="overall">
         <div class="row"><span>ความก้าวหน้าทั้งรายวิชา</span><b>${overall}%</b></div>
         <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${overall}"><span style="width:${overall}%"></span></div>
       </div>
-      <p class="muted" style="font-size:var(--fs-0)">ชื่อนี้จะแสดงในหน้าผลการเรียน ใช้ส่งผลให้คุณครู</p>
-    </form>
+    </section>
   </section>
 
   <section class="stack">
@@ -187,12 +220,109 @@
 </div>`;
   }
 
-  /* ───────── เกม ───────── */
-  function gameStats(g) {
-    return g.summary(state.games[g.id] || {});
+  /* ───────── เลือกชื่อผู้เรียน ───────── */
+  function groupPanel() {
+    const ss = state.session;
+    if (!ss || ss.guest) {
+      return `<h2>สวัสดี ผู้เรียนทั่วไป</h2><p class="muted">ผลการเรียนจะไม่ผูกกับชื่อนักเรียน</p><div class="row"><a class="btn ghost" href="#login">เลือกชื่อนักเรียน</a></div>`;
+    }
+    const keys = members();
+    return `<h2>สวัสดี ${keys.map((k) => esc(studentOf(ss.room, Number(k.split('#')[1])).n)).join(', ')}</h2>
+<p class="muted">${roomBy(ss.room).name} · เรียนด้วยกัน ${keys.length} คนที่เครื่องนี้ ผลการเรียนจะบันทึกให้ทุกคน</p>
+<ul class="who-list">${keys.map((k) => `<li>${esc(nameOf(k, true))}</li>`).join('')}</ul>
+<div class="row"><a class="btn ghost" href="#login">เปลี่ยนคนเรียน</a></div>`;
   }
-  function totalStars() {
-    return GAMES.reduce((a, g) => { const s = gameStats(g); return { stars: a.stars + s.stars, max: a.max + s.max }; }, { stars: 0, max: 0 });
+  function renderWho() {
+    const el = document.getElementById('who');
+    if (!el) return;
+    const ss = state.session;
+    el.hidden = !ss;
+    if (!ss) return;
+    el.textContent = ss.guest ? 'ผู้เรียนทั่วไป' : `${roomBy(ss.room).name} · เลขที่ ${ss.nos.join(', ')}`;
+    el.setAttribute('aria-label', ss.guest ? 'ผู้เรียนทั่วไป เปลี่ยนคนเรียน' : `กำลังเรียน ${members().map((k) => nameOf(k)).join(', ')} แตะเพื่อเปลี่ยนคนเรียน`);
+  }
+  function loginPage() {
+    const ss = state.session;
+    if (ss && !pick.room && current.view === 'login') {
+      return `
+<div class="wrap login">
+  <section class="panel stack" style="max-width:640px">
+    <p class="eyebrow">กำลังเรียนอยู่</p>
+    ${groupPanel().replace(/<div class="row">[\s\S]*<\/div>$/, '')}
+    <div class="row">
+      <button type="button" class="btn primary" data-act="logout">เปลี่ยนคนเรียน</button>
+      <a class="btn ghost" href="#home">เรียนต่อ</a>
+    </div>
+  </section>
+</div>`;
+    }
+    if (!pick.room) {
+      const rooms = ROSTER.rooms.map((r) => `
+<button type="button" class="room-btn" data-act="pick-room" data-room="${r.id}">
+  <b>${r.name}</b><span>${r.students.length} คน</span>
+</button>`).join('');
+      return `
+<div class="wrap login">
+  <section class="login-hero">
+    <div class="stack">
+      <p class="eyebrow">${esc(ROSTER.school || '')} · ปีการศึกษา ${esc(ROSTER.year || '')}</p>
+      <h1>เลือกห้องเรียนของเรา</h1>
+      <p class="lead muted">ก่อนเริ่มเรียน เลือกห้อง แล้วเลือกชื่อของทุกคนที่นั่งคอมพิวเตอร์เครื่องนี้ด้วยกัน</p>
+    </div>
+    ${art('mascot', '', 'login-art')}
+  </section>
+  <div class="rooms">${rooms}</div>
+  <p class="muted"><button type="button" class="linkbtn" data-act="guest">ทดลองใช้โดยไม่เลือกชื่อ</button> (สำหรับคุณครูหรือผู้ปกครอง)</p>
+</div>`;
+    }
+    const room = roomBy(pick.room);
+    const kids = room.students.map((st) => {
+      const on = pick.nos.includes(st.no);
+      return `<button type="button" class="kid${on ? ' on' : ''}" data-act="pick-kid" data-no="${st.no}" aria-pressed="${on}"><span class="kid-no">${st.no}</span><span class="kid-name"><small>${st.t}</small>${esc(st.n)}</span></button>`;
+    }).join('');
+    const chosen = pick.nos.map((n) => esc(nameOf(`${room.id}#${n}`, true))).join(' · ');
+    return `
+<div class="wrap login">
+  <div class="row" style="justify-content:space-between">
+    <button type="button" class="btn ghost" data-act="pick-back">← เลือกห้องอื่น</button>
+    <span class="chip">${room.name} · ${room.students.length} คน</span>
+  </div>
+  <div class="stack">
+    <h1 style="font-size:var(--fs-4)">${room.name} ใครนั่งเครื่องนี้บ้าง?</h1>
+    <p class="muted">แตะชื่อของทุกคนที่เรียนด้วยกันที่เครื่องนี้ เลือกได้สูงสุด ${MAX_GROUP} คน แตะอีกครั้งเพื่อยกเลิก</p>
+  </div>
+  <div class="kids">${kids}</div>
+  <div class="pickbar" aria-live="polite">
+    <div class="pickbar-in">
+      <span class="pick-sum"><b>เลือกแล้ว ${pick.nos.length} คน</b>${chosen ? `<span>${chosen}</span>` : '<span>ยังไม่ได้เลือก</span>'}</span>
+      <button type="button" class="btn primary" data-act="login-go"${pick.nos.length ? '' : ' disabled'}>เริ่มเรียน →</button>
+    </div>
+  </div>
+</div>`;
+  }
+  function startSession(ss) {
+    state.session = ss;
+    pick = { room: null, nos: [] };
+    quiz = null;
+    temp = {};
+    save();
+    if (location.hash === '#login') location.hash = '#home';
+    else render(true);
+  }
+
+  /* ───────── เกม ───────── */
+  function gameStats(g, key) {
+    return g.summary(learner(key || members()[0]).games[g.id] || {});
+  }
+  function mergeGame(dst, src) {
+    if (src.lv) {
+      dst.lv = dst.lv || {};
+      Object.keys(src.lv).forEach((k) => { dst.lv[k] = Math.max(dst.lv[k] || 0, src.lv[k]); });
+    }
+    ['best', 'score', 'plays'].forEach((k) => { if (src[k] != null) dst[k] = Math.max(dst[k] || 0, src[k]); });
+  }
+  function totalStars(key) {
+    return GAMES.reduce((a, g) => { const s = gameStats(g, key); return { stars: a.stars + s.stars, max: a.max + s.max }; }, { stars: 0, max: 0 });
   }
   function starText(n, max) {
     return `<span class="star-count"><i aria-hidden="true">★</i> ${n}/${max}</span>`;
@@ -235,8 +365,15 @@
   function mountGame(g) {
     const root = document.getElementById('game-root');
     if (!root) return;
-    const data = state.games[g.id] || (state.games[g.id] = {});
-    g.mount(root, { data, save, leave: (fn) => leaveFns.push(fn) });
+    const keys = members();
+    const lead = learner(keys[0]).games;
+    const data = lead[g.id] || (lead[g.id] = {});
+    // เกมบันทึกลงข้อมูลของคนแรก แล้วรวมผลที่ดีที่สุดให้ทุกคนในกลุ่ม
+    const saveAll = () => {
+      keys.slice(1).forEach((k) => { const G = learner(k).games; mergeGame(G[g.id] || (G[g.id] = {}), data); });
+      save();
+    };
+    g.mount(root, { data, save: saveAll, leave: (fn) => leaveFns.push(fn) });
   }
 
   /* ───────── หน้ารายวิชา ───────── */
@@ -466,17 +603,17 @@ ${prev}
   function gradeQuiz(u) {
     const total = quiz.qs.length;
     const score = quiz.qs.filter((q, k) => quiz.ans[k] !== undefined && q.choices[quiz.ans[k]].ok).length;
-    const r = rec(u.id);
     const at = Date.now();
-    if (quiz.kind === 'pre') {
-      if (!r.pre) r.pre = { score, total, at };
-    } else {
-      const p = r.post || { best: 0, tries: 0 };
-      r.post = { score, total, at, best: Math.max(p.best, score), tries: p.tries + 1 };
-    }
+    eachUnit(u.id, (r) => {
+      if (quiz.kind === 'pre') {
+        if (!r.pre) r.pre = { score, total, at };
+      } else {
+        const p = r.post || { best: 0, tries: 0 };
+        r.post = { score, total, at, best: Math.max(p.best, score), tries: p.tries + 1 };
+      }
+    });
     quiz.done = true;
     quiz.score = score;
-    save();
   }
   function quizResult(u) {
     const n = unitNo(u);
@@ -717,13 +854,13 @@ ${prev}
   }
 
   function mark(u, i, ok) {
-    const r = rec(u.id);
-    const e = r.ex[i] || { tries: 0, ok: false };
-    if (e.ok) return;
-    e.tries += 1;
-    if (ok) e.ok = true;
-    r.ex[i] = e;
-    save();
+    eachUnit(u.id, (r) => {
+      const e = r.ex[i] || { tries: 0, ok: false };
+      if (e.ok) return;
+      e.tries += 1;
+      if (ok) e.ok = true;
+      r.ex[i] = e;
+    });
   }
   function refreshCard(u, i, focusSel) {
     const card = app.querySelector(`[data-card="${i}"]`);
@@ -742,31 +879,35 @@ ${prev}
   }
 
   /* ───────── ผลการเรียน ───────── */
-  function summaryText() {
-    const p = state.profile;
-    const lines = [
-      `ผลการเรียน ${C.subject} ${C.grade}`,
-      `ชื่อ: ${p.name || '-'}  ชั้น: ${p.room || '-'}  เลขที่: ${p.no || '-'}`,
-      ''
-    ];
+  // คะแนนรวมของผู้เรียน 1 คน
+  function learnerTotals(key) {
+    const L = learner(key);
     let pre = 0; let post = 0; let max = 0;
-    C.units.forEach((u, i) => {
-      const s = stats(u);
-      const r = s.r;
+    const units = C.units.map((u) => {
+      const r = L.units[u.id] || {};
       max += u.test.length;
       if (r.pre) pre += r.pre.score;
       if (r.post) post += r.post.best;
-      const lv = r.post ? level(pct(r.post.best, r.post.total)).t : 'ยังไม่ทดสอบ';
-      lines.push(`หน่วยที่ ${i + 1} ${u.title}: ก่อนเรียน ${r.pre ? r.pre.score : '-'}/${u.test.length}, หลังเรียน ${r.post ? r.post.best : '-'}/${u.test.length}, แบบฝึกหัดถูกครั้งแรก ${s.exFirst}/${u.exercises.length}, ผล ${lv}`);
+      return { pre: r.pre ? r.pre.score : null, post: r.post ? r.post.best : null };
     });
-    lines.push('', `รวม ก่อนเรียน ${pre}/${max} หลังเรียน ${post}/${max} พัฒนาการ ${post - pre >= 0 ? '+' : ''}${post - pre}`);
-    const st = totalStars();
-    lines.push(`ดาวจากเกม ${st.stars}/${st.max}`);
-    lines.push(`วันที่: ${thaiDate(Date.now())}`);
+    return { units, pre, post, max, stars: totalStars(key) };
+  }
+  // สรุปผลทุกคนที่เรียนบนเครื่องนี้ สำหรับคัดลอกส่งครู
+  function summaryText() {
+    const lines = [`ผลการเรียน ${C.subject} ${C.grade}`, `วันที่ ${thaiDate(Date.now())}`, ''];
+    const keys = learnersOnDevice();
+    if (!keys.length) lines.push('ยังไม่มีผลการเรียนในเครื่องนี้');
+    keys.forEach((k) => {
+      const t = learnerTotals(k);
+      const unitText = t.units.map((x, i) => `หน่วย${i + 1} ${x.pre == null ? '-' : x.pre}/${x.post == null ? '-' : x.post}`).join(' ');
+      lines.push(`${nameOf(k)} | ${unitText} | รวมก่อน ${t.pre}/${t.max} หลัง ${t.post}/${t.max} | ดาว ${t.stars.stars}/${t.stars.max}`);
+    });
+    lines.push('', 'รูปแบบคะแนน: หน่วย ก่อนเรียน/หลังเรียน (เต็มหน่วยละ 10)');
     return lines.join('\n');
   }
   function resultsPage() {
-    const p = state.profile;
+    const ss = state.session;
+    const mine = members();
     let pre = 0; let post = 0; let max = 0; let finished = 0;
     const rows = C.units.map((u, i) => {
       const s = stats(u);
@@ -797,16 +938,16 @@ ${prev}
     }).join('');
 
     const confirmBox = askReset
-      ? `<div class="confirm"><b>ลบผลการเรียนทั้งหมดในเครื่องนี้?</b><span>คะแนนทุกหน่วยและชื่อจะหายไป กู้คืนไม่ได้</span>
+      ? `<div class="confirm"><b>ลบผลการเรียนทั้งหมดในเครื่องนี้?</b><span>คะแนนของนักเรียนทุกคนที่เรียนบนเครื่องนี้จะหายไป กู้คืนไม่ได้</span>
 <div class="row"><button type="button" class="btn danger" data-act="reset-yes">ลบข้อมูลทั้งหมด</button><button type="button" class="btn ghost" data-act="reset-no">ยกเลิก</button></div></div>`
-      : `<button type="button" class="btn ghost" data-act="reset-ask">เริ่มเรียนใหม่ทั้งหมด</button>`;
+      : `<button type="button" class="btn ghost" data-act="reset-ask">ลบผลการเรียนทั้งหมดในเครื่องนี้</button>`;
 
     return `
 <div class="wrap">
   <div class="stack">
-    <p class="eyebrow">ผลการเรียน</p>
-    <h1 style="font-size:var(--fs-4)">${p.name ? esc(p.name) : 'ผลการเรียนของฉัน'}</h1>
-    <p class="muted">${p.room ? 'ชั้น ' + esc(p.room) : 'ยังไม่ได้ระบุชั้น'}${p.no ? ' · เลขที่ ' + esc(p.no) : ''} · <a href="#home">แก้ไขชื่อ</a></p>
+    <p class="eyebrow">ผลการเรียน${ss && !ss.guest ? ' · ' + roomBy(ss.room).name : ''}</p>
+    <h1 style="font-size:var(--fs-4)">${mine.length > 1 ? 'ผลการเรียนของกลุ่มเรา' : esc(nameOf(mine[0]))}</h1>
+    ${mine.length > 1 ? `<ul class="who-list">${mine.map((k) => `<li>${esc(nameOf(k, true))}</li>`).join('')}</ul>` : ''}
   </div>
   <div class="kpis">
     <div class="stat"><b>${finished}/${C.units.length}</b><span>หน่วยที่เรียนครบ</span></div>
@@ -815,7 +956,7 @@ ${prev}
   </div>
   <div class="report">
     <section class="panel stack">
-      <h2>คะแนนรายหน่วย</h2>
+      <h2>คะแนนรายหน่วย${mine.length > 1 ? 'ของกลุ่ม' : ''}</h2>
       <div class="tbl-wrap"><table class="tbl">
         <thead><tr><th>หน่วย</th><th class="num">ก่อนเรียน</th><th class="num">หลังเรียน</th><th class="num">พัฒนาการ</th><th class="num">แบบฝึกหัด<br><span class="muted" style="font-weight:400">ถูกครั้งแรก</span></th><th class="num">บทเรียน</th><th>ผล</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -833,13 +974,35 @@ ${prev}
     <div class="gcards">${GAMES.map(gameCard).join('')}</div>
   </section>
   <section class="panel stack">
+    <h2>นักเรียนทุกคนที่เรียนบนเครื่องนี้</h2>
+    <p class="muted">แถวที่เน้นสีคือกลุ่มที่กำลังเรียนอยู่ คะแนนหลังเรียนเป็นคะแนนสูงสุด</p>
+    ${deviceTable()}
+  </section>
+  <section class="panel stack">
     <h2>ส่งผลการเรียนให้คุณครู</h2>
-    <p class="muted">ผลการเรียนเก็บไว้ในเบราว์เซอร์ของเครื่องนี้เท่านั้น กดคัดลอกแล้ววางส่งให้ครูทางแชตหรืออีเมล</p>
+    <p class="muted">ผลการเรียนเก็บไว้ในเบราว์เซอร์ของเครื่องนี้เท่านั้น สรุปด้านล่างรวมทุกคนที่เรียนบนเครื่องนี้ กดคัดลอกแล้ววางส่งให้ครูทางแชตหรืออีเมล</p>
     <textarea class="copybox" id="copybox" readonly>${esc(summaryText())}</textarea>
     <div class="row"><button type="button" class="btn primary" data-act="copy">คัดลอกสรุปผล</button><span id="copy-msg" class="muted" aria-live="polite"></span></div>
   </section>
   <section class="stack">${confirmBox}</section>
 </div>`;
+  }
+
+  function deviceTable() {
+    const keys = learnersOnDevice();
+    if (!keys.length) return '<p class="muted">ยังไม่มีผลการเรียนในเครื่องนี้</p>';
+    const mine = members();
+    const head1 = C.units.map((u, i) => `<th colspan="2" class="num">หน่วย ${i + 1}</th>`).join('');
+    const head2 = C.units.map(() => '<th class="num sub">ก่อน</th><th class="num sub">หลัง</th>').join('');
+    const rows = keys.map((k) => {
+      const t = learnerTotals(k);
+      const cells = t.units.map((x) => `<td class="num">${x.pre == null ? '–' : x.pre}</td><td class="num">${x.post == null ? '–' : x.post}</td>`).join('');
+      return `<tr${mine.includes(k) ? ' class="me"' : ''}><td>${esc(nameOf(k))}</td>${cells}<td class="num"><b>${t.pre}</b></td><td class="num"><b>${t.post}</b></td><td class="num">${t.stars.stars}</td></tr>`;
+    }).join('');
+    return `<div class="tbl-wrap"><table class="tbl roster-tbl">
+<thead><tr><th rowspan="2">นักเรียน</th>${head1}<th colspan="2" class="num">รวม (เต็ม 50)</th><th rowspan="2" class="num">ดาว</th></tr>
+<tr>${head2}<th class="num sub">ก่อน</th><th class="num sub">หลัง</th></tr></thead>
+<tbody>${rows}</tbody></table></div>`;
   }
 
   /* ───────── วาดตารางภาพนิ่งและแผนภูมิในเนื้อหา ───────── */
@@ -899,8 +1062,7 @@ ${prev}
   const actions = {
     'read'(el) {
       const u = current.u;
-      rec(u.id).lessons[current.l] = true;
-      save();
+      eachUnit(u.id, (r) => { r.lessons[current.l] = true; });
       location.hash = el.dataset.next;
     },
     'q-start'(el) {
@@ -985,12 +1147,11 @@ ${prev}
     },
     'ex-reveal'(el) {
       const { u, i } = exCtx(el);
-      const r = rec(u.id);
-      const e = r.ex[i] || { tries: 0, ok: false };
-      e.ok = true;
-      e.revealed = true;
-      r.ex[i] = e;
-      save();
+      eachUnit(u.id, (r) => {
+        const e = r.ex[i] || { tries: 0, ok: false };
+        if (!e.ok) { e.ok = true; e.revealed = true; }
+        r.ex[i] = e;
+      });
       refreshCard(u, i);
     },
     'g-add'(el) {
@@ -1033,10 +1194,30 @@ ${prev}
         navigator.clipboard.writeText(box.value).then(() => { msg.textContent = 'คัดลอกแล้ว'; }, fallback);
       } catch (e) { fallback(); }
     },
+    'pick-room'(el) { pick = { room: el.dataset.room, nos: [] }; render(true); },
+    'pick-back'() { pick = { room: null, nos: [] }; render(true); },
+    'pick-kid'(el) {
+      const no = Number(el.dataset.no);
+      if (pick.nos.includes(no)) pick.nos = pick.nos.filter((n) => n !== no);
+      else if (pick.nos.length < MAX_GROUP) pick.nos = pick.nos.concat(no).sort((a, b) => a - b);
+      render(false);
+      const btn = app.querySelector(`.kid[data-no="${no}"]`);
+      if (btn) btn.focus({ preventScroll: true });
+    },
+    'login-go'() { if (pick.nos.length) startSession({ room: pick.room, nos: pick.nos.slice() }); },
+    'guest'() { startSession({ guest: true }); },
+    'logout'() {
+      state.session = null;
+      quiz = null;
+      temp = {};
+      save();
+      render(true);
+    },
     'reset-ask'() { askReset = true; render(false); },
     'reset-no'() { askReset = false; render(false); },
     'reset-yes'() {
       state = fresh();
+      pick = { room: null, nos: [] };
       temp = {};
       quiz = null;
       askReset = false;
@@ -1062,17 +1243,6 @@ ${prev}
       t.marks = null;
       t.fb = null;
       refreshCard(u, i, `#${el.id}`);
-    }
-  });
-  app.addEventListener('input', (e) => {
-    const el = e.target;
-    if (el.dataset && el.dataset.pf) {
-      state.profile[el.dataset.pf] = el.value.trim();
-      save();
-      if (el.dataset.pf === 'name') {
-        const h = document.getElementById('hello-name');
-        if (h) h.textContent = state.profile.name ? 'สวัสดี ' + state.profile.name : 'เขียนชื่อก่อนเริ่มเรียน';
-      }
     }
   });
   app.addEventListener('submit', (e) => e.preventDefault());
