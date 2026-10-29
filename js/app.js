@@ -16,22 +16,23 @@
   const KEY = 'sanuk-p3-v1';
   const PASS = 60;
   const KO = ['ก', 'ข', 'ค', 'ง'];
-  const ARROW = { U: '⬆', D: '⬇', L: '⬅', R: '➡' };
-  const MOVE = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
-  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const { ARROW, MOVE, esc, shuffle, reduceMotion, boardHTML } = window.Kit;
+  const GAMES = window.GAMES || [];
+  const art = window.artFigure || (() => '');
   const app = document.getElementById('app');
 
   let state = load();
   let quiz = null;        // แบบทดสอบที่กำลังทำอยู่
   let temp = {};          // สถานะชั่วคราวของแบบฝึกหัดแต่ละข้อ
   let askReset = false;
+  let leaveFns = [];      // ฟังก์ชันเก็บกวาดของเกม (เช่น หยุดตัวจับเวลา) เมื่อเปลี่ยนหน้า
 
   /* ───────── ข้อมูลที่บันทึก ───────── */
-  function fresh() { return { profile: { name: '', room: '', no: '' }, units: {} }; }
+  function fresh() { return { profile: { name: '', room: '', no: '' }, units: {}, games: {} }; }
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(KEY));
-      if (s && s.units && s.profile) return s;
+      if (s && s.units && s.profile) { s.games = s.games || {}; return s; }
     } catch (e) { /* ใช้ค่าเริ่มต้น */ }
     return fresh();
   }
@@ -41,16 +42,7 @@
   function rec(uid) { return state.units[uid] || (state.units[uid] = { lessons: {}, ex: {} }); }
 
   /* ───────── ตัวช่วย ───────── */
-  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pct = (s, t) => (t ? Math.round((s * 100) / t) : 0);
-  function shuffle(a) {
-    a = a.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
   function level(p) {
     if (p >= 80) return { t: 'ดีมาก', c: 'lv-great' };
     if (p >= 70) return { t: 'ดี', c: 'lv-good' };
@@ -78,7 +70,8 @@
     const h = location.hash.replace(/^#/, '');
     let m;
     if (!h || h === 'home') return { view: 'home' };
-    if (h === 'course' || h === 'results') return { view: h };
+    if (h === 'course' || h === 'results' || h === 'games') return { view: h };
+    if ((m = h.match(/^game-([a-z]+)$/)) && GAMES.find((g) => g.id === m[1])) return { view: 'game', game: GAMES.find((g) => g.id === m[1]) };
     if ((m = h.match(/^u(\d)$/)) && unitBy(m[1])) return { view: 'unit', u: unitBy(m[1]) };
     if ((m = h.match(/^u(\d)-l(\d+)$/)) && unitBy(m[1]) && unitBy(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitBy(m[1]), l: Number(m[2]) };
     if ((m = h.match(/^u(\d)-(pre|post)$/)) && unitBy(m[1])) return { view: 'quiz', u: unitBy(m[1]), kind: m[2] };
@@ -88,10 +81,14 @@
 
   let current = parse();
   function render(scrollTop) {
+    leaveFns.forEach((fn) => { try { fn(); } catch (e) { /* ไม่เป็นไร */ } });
+    leaveFns = [];
     current = parse();
     const v = current;
     let html;
     if (v.view === 'course') html = coursePage();
+    else if (v.view === 'games') html = gamesPage();
+    else if (v.view === 'game') html = gamePage(v.game);
     else if (v.view === 'results') html = resultsPage();
     else if (v.view === 'unit') html = unitPage(v.u);
     else if (v.view === 'lesson') html = lessonPage(v.u, v.l);
@@ -100,9 +97,9 @@
     else html = homePage();
     app.innerHTML = html;
     enhance(app);
-    document.querySelectorAll('[data-nav]').forEach((a) => {
-      a.classList.toggle('on', a.dataset.nav === (v.view === 'course' || v.view === 'results' ? v.view : 'home'));
-    });
+    if (v.view === 'game') mountGame(v.game);
+    const navKey = v.view === 'game' ? 'games' : ['course', 'results', 'games'].includes(v.view) ? v.view : 'home';
+    document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('on', a.dataset.nav === navKey));
     if (scrollTop) {
       window.scrollTo(0, 0);
       try { app.focus({ preventScroll: true }); } catch (e) { /* ไม่เป็นไร */ }
@@ -117,6 +114,7 @@
     const p = state.profile;
     const all = C.units.map(stats);
     const overall = Math.round(all.reduce((a, s) => a + s.progress, 0) / all.length);
+    const stars = totalStars();
     const blocks = C.units.map((u, i) => {
       const s = all[i];
       const r = s.r;
@@ -144,8 +142,13 @@
     <div class="stack">
       <p class="eyebrow">${C.subject} · ${C.grade}</p>
       <h1>คิดเป็นขั้นตอน <em>สนุก</em>ได้ทุกบทเรียน</h1>
-      <p class="lead">บทเรียนออนไลน์ 5 หน่วย ตั้งแต่อัลกอริทึม การเขียนโปรแกรม Scratch การค้นหาและนำเสนอข้อมูล ไปจนถึงการใช้อินเทอร์เน็ตอย่างปลอดภัย ทุกหน่วยมีแบบทดสอบก่อนเรียน แบบฝึกหัด และแบบทดสอบหลังเรียน</p>
+      <p class="lead">เรียนกับน้องสนุก 5 หน่วย ตั้งแต่อัลกอริทึม การเขียนโปรแกรม Scratch การค้นหาและนำเสนอข้อมูล ไปจนถึงการใช้อินเทอร์เน็ตอย่างปลอดภัย มีแบบทดสอบ แบบฝึกหัด และเกมให้เล่นทุกหน่วย</p>
+      <div class="row">
+        <a class="btn primary" href="#u1">เริ่มเรียนหน่วยที่ 1</a>
+        <a class="btn" href="#games">ลานเกม ${starText(stars.stars, stars.max)}</a>
+      </div>
     </div>
+    ${art('mascot', '', 'hero-art')}
     <form class="panel profile" id="profile" autocomplete="off">
       <h2 id="hello-name">${p.name ? 'สวัสดี ' + esc(p.name) : 'เขียนชื่อก่อนเริ่มเรียน'}</h2>
       <div class="fields">
@@ -182,6 +185,58 @@
     </ul>
   </section>
 </div>`;
+  }
+
+  /* ───────── เกม ───────── */
+  function gameStats(g) {
+    return g.summary(state.games[g.id] || {});
+  }
+  function totalStars() {
+    return GAMES.reduce((a, g) => { const s = gameStats(g); return { stars: a.stars + s.stars, max: a.max + s.max }; }, { stars: 0, max: 0 });
+  }
+  function starText(n, max) {
+    return `<span class="star-count"><i aria-hidden="true">★</i> ${n}/${max}</span>`;
+  }
+  function gameCard(g) {
+    const s = gameStats(g);
+    const u = C.units.find((x) => x.id === g.unit);
+    return `<a class="gcard ${g.unit}" href="#game-${g.id}">
+  <span class="gcard-emoji" aria-hidden="true">${g.emoji}</span>
+  <span class="gcard-body"><span class="eyebrow">หน่วยที่ ${unitNo(u)}</span><b>${g.title}</b><span class="muted">${g.desc}</span></span>
+  ${starText(s.stars, s.max)}
+</a>`;
+  }
+  function gamesPage() {
+    const t = totalStars();
+    return `
+<div class="wrap">
+  <section class="games-hero">
+    <div class="stack">
+      <p class="eyebrow">ลานเกม</p>
+      <h1>เล่นเกม สะสมดาว</h1>
+      <p class="lead muted">เกมฝึกคิดของทุกหน่วย เล่นซ้ำได้ ยิ่งใช้คำสั่งน้อยหรือตอบถูกมาก ยิ่งได้ดาวเยอะ</p>
+      <p class="big-stars">${starText(t.stars, t.max)} <span class="muted">ดาวที่สะสมได้</span></p>
+    </div>
+    ${art('mascot')}
+  </section>
+  <div class="gcards">${GAMES.map(gameCard).join('')}</div>
+</div>`;
+  }
+  function gamePage(g) {
+    const u = C.units.find((x) => x.id === g.unit);
+    const n = unitNo(u);
+    return `
+<div class="wrap ${g.unit}">
+  <nav class="crumbs" aria-label="ตำแหน่ง"><a href="#home">หน้าแรก</a><span>›</span><a href="#games">ลานเกม</a><span>›</span><span>${g.title}</span></nav>
+  <header class="band band-game"><p class="eyebrow">เกมของหน่วยที่ ${n} · ${u.title}</p><h1><span aria-hidden="true">${g.emoji}</span> ${g.title}</h1><p>${g.desc}</p></header>
+  <div id="game-root" class="game-root"></div>
+</div>`;
+  }
+  function mountGame(g) {
+    const root = document.getElementById('game-root');
+    if (!root) return;
+    const data = state.games[g.id] || (state.games[g.id] = {});
+    g.mount(root, { data, save, leave: (fn) => leaveFns.push(fn) });
   }
 
   /* ───────── หน้ารายวิชา ───────── */
@@ -257,11 +312,14 @@
     return `
 <div class="wrap ${u.id}">
   <nav class="crumbs" aria-label="ตำแหน่ง"><a href="#home">หน้าแรก</a><span>›</span><span>หน่วยที่ ${n}</span></nav>
-  <header class="band">
-    <p class="eyebrow">หน่วยการเรียนรู้ที่ ${n} · ${u.hours} ชั่วโมง</p>
-    <h1>${u.title}</h1>
-    <p class="ind"><b>${u.indicator.code}</b><span>${u.indicator.text}</span></p>
-    <div><p><b>เรียนจบแล้ว นักเรียนจะ</b></p><ul>${u.goals.map((g) => `<li>${g}</li>`).join('')}</ul></div>
+  <header class="band band-art">
+    <div class="band-text">
+      <p class="eyebrow">หน่วยการเรียนรู้ที่ ${n} · ${u.hours} ชั่วโมง</p>
+      <h1>${u.title}</h1>
+      <p class="ind"><b>${u.indicator.code}</b><span>${u.indicator.text}</span></p>
+      <div><p><b>เรียนจบแล้ว นักเรียนจะ</b></p><ul>${u.goals.map((g) => `<li>${g}</li>`).join('')}</ul></div>
+    </div>
+    ${art(u.art, '', 'band-pic')}
   </header>
   <div class="path">
     <div class="step${r.pre ? ' done' : ''}"><span class="n">1</span><section class="panel"><h2>แบบทดสอบก่อนเรียน</h2>${preBody}</section></div>
@@ -274,6 +332,10 @@
       <div><a class="btn${s.exDone ? '' : ' primary'}" href="#${u.id}-ex">${s.exDone ? 'ทำแบบฝึกหัดต่อ' : 'เริ่มทำแบบฝึกหัด'}</a></div></section></div>
     <div class="step${r.post ? ' done' : ''}"><span class="n">4</span><section class="panel"><h2>แบบทดสอบหลังเรียน</h2>${postBody}</section></div>
   </div>
+  <section class="stack">
+    <h2 style="font-size:var(--fs-3)">เกมทบทวนของหน่วยนี้</h2>
+    <div class="gcards">${GAMES.filter((g) => g.unit === u.id).map(gameCard).join('')}</div>
+  </section>
 </div>`;
   }
 
@@ -295,7 +357,9 @@
         <p class="eyebrow">หน่วยที่ ${n} · บทเรียนที่ ${n}.${l} จาก ${u.lessons.length} บท</p>
         <h1>${lesson.title}</h1>
       </div>
-      <div class="prose">${lesson.body}</div>
+      ${lesson.art ? art(lesson.art, lesson.caption, 'lesson-art') : ''}
+      <div class="prose">${lesson.body}${lesson.more || ''}${lesson.moreArt ? art(lesson.moreArt) : ''}</div>
+      ${lessonExtras(lesson)}
       <section class="recap"><h2>สรุปบทเรียน</h2><ul>${lesson.recap.map((x) => `<li>${x}</li>`).join('')}</ul></section>
       <div class="pager">
         ${l > 1 ? `<a class="btn ghost" href="#${u.id}-l${l - 1}">← บทก่อนหน้า</a>` : `<a class="btn ghost" href="#${u.id}">← กลับหน้าหน่วย</a>`}
@@ -309,6 +373,18 @@
     </aside>
   </div>
 </div>`;
+  }
+
+  function lessonExtras(lesson) {
+    const g = lesson.game && GAMES.find((x) => x.id === lesson.game);
+    const vocab = lesson.vocab
+      ? `<section class="box vocab"><h2>คำศัพท์น่ารู้</h2><dl>${lesson.vocab.map(([th, en, m]) => `<div><dt>${th} <span lang="en">${en}</span></dt><dd>${m}</dd></div>`).join('')}</dl></section>` : '';
+    const act = lesson.activity
+      ? `<section class="box activity"><h2>กิจกรรมฝึกปฏิบัติ</h2><p>${lesson.activity}</p>${lesson.activityAnswer ? `<details><summary>ดูคำตอบ</summary>${lesson.activityAnswer}</details>` : ''}</section>` : '';
+    const fact = lesson.fact ? `<section class="box fact"><h2>เกร็ดความรู้</h2><p>${lesson.fact}</p></section>` : '';
+    const game = g
+      ? `<a class="box game-link" href="#game-${g.id}"><span class="gl-emoji" aria-hidden="true">${g.emoji}</span><span class="gl-text"><b>เล่นเกม ${g.title}</b><span>${g.desc}</span></span><span class="go">เล่นเลย →</span></a>` : '';
+    return vocab || act || fact || game ? `<div class="extras">${vocab}${act}${fact}${game}</div>` : '';
   }
 
   /* ───────── แบบทดสอบ ───────── */
@@ -562,32 +638,6 @@ ${prev}
     return `<div class="match">${rows}</div>${e.ok ? '' : `<div class="row"><button type="button" class="btn primary" data-act="match-check" data-ex="${i}"${all ? '' : ' disabled'}>ตรวจคำตอบ</button></div>`}`;
   }
 
-  /* ตารางเดิน */
-  function boardHTML(g, pos, trail, crash, arrows) {
-    const [w, h] = g.size;
-    const rock = (x, y) => (g.rocks || []).some((r) => r[0] === x && r[1] === y);
-    const p = pos || g.start;
-    let cells = '';
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const isHero = p[0] === x && p[1] === y;
-        const isGoal = g.goal[0] === x && g.goal[1] === y;
-        const inTrail = trail && trail.some((c) => c[0] === x && c[1] === y);
-        let cls = 'cell';
-        let content = '';
-        if (rock(x, y)) { cls += ' rock'; content = '🪨'; }
-        if (inTrail) cls += ' trail';
-        if (arrows && arrows[`${x},${y}`]) content = `<span class="arw">${arrows[`${x},${y}`]}</span>`;
-        if (isGoal) content = '🐟';
-        if (isHero) content = '🐱';
-        if (crash && crash[0] === x && crash[1] === y) { cls += ' crash'; content = '💥'; }
-        if (isHero && isGoal) { cls += ' win'; content = '🐱'; }
-        cells += `<div class="${cls}">${content}</div>`;
-      }
-    }
-    const desc = `ตาราง ${w} คอลัมน์ ${h} แถว แมวอยู่คอลัมน์ ${p[0] + 1} แถว ${p[1] + 1} ปลาอยู่คอลัมน์ ${g.goal[0] + 1} แถว ${g.goal[1] + 1}`;
-    return `<div class="board" style="--cols:${w}" role="img" aria-label="${desc}">${cells}</div>`;
-  }
   function exGrid(ex, e, t, i) {
     const g = ex.grid;
     const prog = t.prog.map((b, k) => `<button type="button" class="${b.n > 1 ? 'loop' : ''}${t.runIdx === k ? ' run' : ''}" data-act="g-del" data-ex="${i}" data-k="${k}" aria-label="ลบคำสั่ง ${ARROW[b.d]} ${b.n} ครั้ง"${t.running ? ' disabled' : ''}>${ARROW[b.d]}${b.n > 1 ? `<small>×${b.n}</small>` : ''}</button>`).join('');
@@ -710,6 +760,8 @@ ${prev}
       lines.push(`หน่วยที่ ${i + 1} ${u.title}: ก่อนเรียน ${r.pre ? r.pre.score : '-'}/${u.test.length}, หลังเรียน ${r.post ? r.post.best : '-'}/${u.test.length}, แบบฝึกหัดถูกครั้งแรก ${s.exFirst}/${u.exercises.length}, ผล ${lv}`);
     });
     lines.push('', `รวม ก่อนเรียน ${pre}/${max} หลังเรียน ${post}/${max} พัฒนาการ ${post - pre >= 0 ? '+' : ''}${post - pre}`);
+    const st = totalStars();
+    lines.push(`ดาวจากเกม ${st.stars}/${st.max}`);
     lines.push(`วันที่: ${thaiDate(Date.now())}`);
     return lines.join('\n');
   }
@@ -776,6 +828,10 @@ ${prev}
       <div class="cmp-scale"><span></span><div><span>0%</span><span>50%</span><span>100%</span></div></div>
     </section>
   </div>
+  <section class="panel stack">
+    <div class="row" style="justify-content:space-between"><h2>ดาวจากเกม</h2>${starText(totalStars().stars, totalStars().max)}</div>
+    <div class="gcards">${GAMES.map(gameCard).join('')}</div>
+  </section>
   <section class="panel stack">
     <h2>ส่งผลการเรียนให้คุณครู</h2>
     <p class="muted">ผลการเรียนเก็บไว้ในเบราว์เซอร์ของเครื่องนี้เท่านั้น กดคัดลอกแล้ววางส่งให้ครูทางแชตหรืออีเมล</p>
