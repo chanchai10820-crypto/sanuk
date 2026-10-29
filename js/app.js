@@ -110,7 +110,7 @@
     if (h === 'course' || h === 'results' || h === 'games' || h === 'login') return { view: h };
     if ((m = h.match(/^game-([a-z]+)$/)) && GAMES.find((g) => g.id === m[1])) return { view: 'game', game: GAMES.find((g) => g.id === m[1]) };
     if ((m = h.match(/^u(\d)$/)) && unitBy(m[1])) return { view: 'unit', u: unitBy(m[1]) };
-    if ((m = h.match(/^u(\d)-l(\d+)$/)) && unitBy(m[1]) && unitBy(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitBy(m[1]), l: Number(m[2]) };
+    if ((m = h.match(/^u(\d)-l(\d+)(?:-(pre|warm|learn|do|sum|post))?$/)) && unitBy(m[1]) && unitBy(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitBy(m[1]), l: Number(m[2]), stage: m[3] };
     if ((m = h.match(/^u(\d)-(pre|post)$/)) && unitBy(m[1])) return { view: 'quiz', u: unitBy(m[1]), kind: m[2] };
     if ((m = h.match(/^u(\d)-ex$/)) && unitBy(m[1])) return { view: 'ex', u: unitBy(m[1]) };
     return { view: 'home' };
@@ -130,7 +130,7 @@
     else if (v.view === 'game') html = gamePage(v.game);
     else if (v.view === 'results') html = resultsPage();
     else if (v.view === 'unit') html = unitPage(v.u);
-    else if (v.view === 'lesson') html = lessonPage(v.u, v.l);
+    else if (v.view === 'lesson') html = lessonPage(v.u, v.l, v.stage);
     else if (v.view === 'quiz') html = quizPage(v.u, v.kind);
     else if (v.view === 'ex') html = exercisePage(v.u);
     else html = homePage();
@@ -212,7 +212,7 @@
     <h2>เรียนแต่ละหน่วยอย่างไร</h2>
     <ul class="howto">
       <li><b>ทดสอบก่อนเรียน</b><span>10 ข้อ ดูว่าเรารู้อะไรอยู่แล้ว ทำได้ครั้งเดียว</span></li>
-      <li><b>เรียนเนื้อหา</b><span>อ่านบทเรียน ลองคิด แล้วกดอ่านจบแล้ว</span></li>
+      <li><b>เรียนรายบท</b><span>บทละ 1 ชั่วโมง: ทดสอบก่อน คำถามนำ เนื้อหา กิจกรรม สรุป ทดสอบหลัง</span></li>
       <li><b>ทำแบบฝึกหัด</b><span>เรียงลำดับ จับคู่ เขียนคำสั่งพาแมวไปหาปลา</span></li>
       <li><b>ทดสอบหลังเรียน</b><span>10 ข้อ เทียบคะแนนกับก่อนเรียน ดูเฉลยได้</span></li>
     </ul>
@@ -377,7 +377,27 @@
   }
 
   /* ───────── หน้ารายวิชา ───────── */
+  // ชั่วโมงฝึกทักษะของแต่ละหน่วย (รวมกับปฐมนิเทศ บทเรียน และทดสอบหลังเรียน = ชั่วโมงของหน่วย)
+  const PRACTICE = {
+    u1: ['แบบฝึกหัดหน่วยที่ 1', 'เกมแมวหาปลา', 'เกมทายเลขในใจ', 'กิจกรรมหุ่นยนต์เพื่อนและเดินตามลูกศร (ไม่ใช้คอมพิวเตอร์)'],
+    u2: ['แบบฝึกหัดหน่วยที่ 2', 'เกมเต่าวาดรูป', 'เกมนักล่าบั๊ก', 'สร้างผลงาน Scratch ของตนเอง', 'นำเสนอผลงาน Scratch'],
+    u3: ['แบบฝึกหัดหน่วยที่ 3 และเกมคัดแยกเว็บไซต์'],
+    u4: [],
+    u5: ['แบบฝึกหัดหน่วยที่ 5 เกมฮีโร่ปลอดภัยออนไลน์ และเกมรหัสผ่านแข็งแรง']
+  };
+  function hourPlan() {
+    let h = 0;
+    const row = (u, kind, text, href) => `<tr class="hp-${kind}"><td class="num">${++h}</td><td>หน่วยที่ ${unitNo(u)}</td><td>${href ? `<a href="${href}">${text}</a>` : text}</td><td>${{ open: 'ปฐมนิเทศ', lesson: 'บทเรียน 6 ขั้น', practice: 'ฝึกทักษะ', test: 'ประเมินผล' }[kind]}</td></tr>`;
+    const rows = C.units.map((u) => [
+      row(u, 'open', `ปฐมนิเทศหน่วย "${u.title}" และทดสอบก่อนเรียนหน่วย 10 ข้อ`, `#${u.id}-pre`),
+      ...u.lessons.map((l, i) => row(u, 'lesson', `บทที่ ${unitNo(u)}.${i + 1} ${l.title}`, `#${u.id}-l${i + 1}`)),
+      ...(PRACTICE[u.id] || []).map((t) => row(u, 'practice', t)),
+      row(u, 'test', 'ทดสอบหลังเรียนหน่วย 10 ข้อ และทบทวน', `#${u.id}-post`)
+    ].join('')).join('');
+    return { rows, total: h };
+  }
   function coursePage() {
+    const plan = hourPlan();
     const rows = C.units.map((u, i) => `
 <tr><td class="num">${i + 1}</td><td><b>${u.title}</b><br><span class="muted">${u.lessons.map((l, k) => `${i + 1}.${k + 1} ${l.title}`).join(' · ')}</span></td>
 <td><b>${u.indicator.code}</b><br>${u.indicator.text}</td><td class="num">${u.hours}</td></tr>`).join('');
@@ -400,10 +420,19 @@
     </table></div>
   </section>
   <section class="panel stack">
+    <h2>แผนการจัดการเรียนรู้ ${plan.total} ชั่วโมง</h2>
+    <p class="muted">บทเรียนทุกบทใช้เวลา 1 ชั่วโมง แบ่งเป็น 6 ขั้น: ${STAGES.map((x) => `${x.name} ${x.min} นาที`).join(' · ')} เปิดแผนการสอนของแต่ละบทได้ในหน้าบทเรียน (หัวข้อ "แผนการสอน 60 นาที")</p>
+    <div class="tbl-wrap"><table class="tbl hour-plan">
+      <thead><tr><th class="num">ชั่วโมงที่</th><th>หน่วย</th><th>เรื่อง</th><th>ลักษณะ</th></tr></thead>
+      <tbody>${plan.rows}</tbody>
+    </table></div>
+  </section>
+  <section class="panel stack">
     <h2>การวัดและประเมินผล</h2>
     <div class="tbl-wrap"><table class="tbl">
       <thead><tr><th>เครื่องมือ</th><th>จำนวน</th><th>วิธีใช้</th></tr></thead>
       <tbody>
+        <tr><td>แบบทดสอบก่อน–หลังเรียนประจำบท</td><td>บทละ 5 ข้อ</td><td>ทำตอนเริ่มและตอนจบของทุกชั่วโมง ก่อนเรียนทำได้ครั้งเดียว หลังเรียนแสดงเฉลย เกณฑ์ผ่าน 3 ข้อ</td></tr>
         <tr><td>แบบทดสอบก่อนเรียน</td><td>หน่วยละ 10 ข้อ</td><td>วัดพื้นฐานก่อนเรียน ทำได้ครั้งเดียว ยังไม่แสดงเฉลย</td></tr>
         <tr><td>แบบฝึกหัด</td><td>หน่วยละ 6–7 ข้อ</td><td>ฝึกระหว่างเรียน ทำซ้ำจนถูกได้ นับคะแนนจากข้อที่ถูกตั้งแต่ครั้งแรก</td></tr>
         <tr><td>แบบทดสอบหลังเรียน</td><td>หน่วยละ 10 ข้อ</td><td>ข้อสอบชุดเดียวกับก่อนเรียน สลับข้อและตัวเลือก ทำซ้ำได้ เก็บคะแนนสูงสุด แสดงเฉลยพร้อมคำอธิบาย</td></tr>
@@ -428,7 +457,7 @@
     const r = s.r;
     const lessons = u.lessons.map((l, i) => `
 <li><a href="#${u.id}-l${i + 1}"><span class="tick${r.lessons[i + 1] ? ' on' : ''}" aria-hidden="true">${r.lessons[i + 1] ? '✓' : ''}</span>
-<span>${n}.${i + 1} ${l.title}</span><span class="muted" style="font-size:var(--fs-0)">${r.lessons[i + 1] ? 'อ่านแล้ว' : 'ยังไม่อ่าน'}</span></a></li>`).join('');
+<span>${n}.${i + 1} ${l.title}</span><span class="muted" style="font-size:var(--fs-0)">${(() => { const x = lessonRec(u.id, i + 1); return x.post ? `ก่อน ${x.pre ? x.pre.score : '–'} · หลัง ${x.post.best}/${x.post.total}` : x.pre ? `ก่อนเรียน ${x.pre.score}/${x.pre.total}` : 'ยังไม่เรียน'; })()}</span></a></li>`).join('');
     const preP = r.pre ? pct(r.pre.score, r.pre.total) : 0;
     const postP = r.post ? pct(r.post.best, r.post.total) : 0;
 
@@ -461,7 +490,7 @@
   <div class="path">
     <div class="step${r.pre ? ' done' : ''}"><span class="n">1</span><section class="panel"><h2>แบบทดสอบก่อนเรียน</h2>${preBody}</section></div>
     <div class="step${s.read === u.lessons.length ? ' done' : ''}"><span class="n">2</span><section class="panel">
-      <div class="row" style="justify-content:space-between"><h2>เรียนเนื้อหา</h2><span class="chip">${s.read}/${u.lessons.length} บท</span></div>
+      <div class="row" style="justify-content:space-between"><h2>เรียนรายบท (บทละ 1 ชั่วโมง)</h2><span class="chip">ผ่าน ${s.read}/${u.lessons.length} บท</span></div>
       <ul class="lesson-list">${lessons}</ul></section></div>
     <div class="step${s.exDone === u.exercises.length ? ' done' : ''}"><span class="n">3</span><section class="panel">
       <div class="row" style="justify-content:space-between"><h2>แบบฝึกหัด</h2><span class="chip">${s.exDone}/${u.exercises.length} ข้อ</span></div>
@@ -476,32 +505,181 @@
 </div>`;
   }
 
-  /* ───────── หน้าบทเรียน ───────── */
-  function lessonPage(u, l) {
+  /* ───────── หน้าบทเรียน: 1 บท = 1 ชั่วโมง 6 ขั้น ───────── */
+  const STAGES = window.STAGES || [];
+  let lquiz = null;   // แบบทดสอบประจำบทที่กำลังทำ { key, qs, ans, done, score }
+
+  // ผลแบบทดสอบประจำบท นับว่าทำก่อนเรียนแล้วเมื่อทุกคนในกลุ่มทำแล้ว
+  function lessonRec(uid, l) {
+    const keys = members();
+    const get = (k) => (unitOf(k, uid).lq || {})[l] || {};
+    const lead = get(keys[0]);
+    return { pre: keys.every((k) => get(k).pre) ? lead.pre : undefined, post: lead.post };
+  }
+  const defaultStage = (lr) => (!lr.pre ? 'pre' : !lr.post ? 'warm' : 'learn');
+  const plain = (h) => h.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const goalText = (g) => g.replace(/^[KPA]\s+/, '');
+
+  function newLquiz(key, lesson) {
+    return {
+      key, done: false, ans: [],
+      qs: shuffle(lesson.quiz || []).map((q) => ({ q: q.q, explain: q.explain, choices: shuffle(q.choices.map((t, k) => ({ t, ok: k === q.a }))) }))
+    };
+  }
+  function lessonQuizHTML(u, l, lesson, kind) {
+    const key = `${u.id}-${l}-${kind}`;
+    if (!lquiz || lquiz.key !== key) lquiz = newLquiz(key, lesson);
+    if (lquiz.done) return lessonQuizResult(u, l, lesson, kind);
+    const total = lquiz.qs.length;
+    const answered = lquiz.ans.filter((a) => a !== undefined).length;
+    const items = lquiz.qs.map((q, qi) => `
+<fieldset class="lq"><legend>${qi + 1}. ${esc(q.q)}</legend><div class="opts">${q.choices.map((c, ci) => `<button type="button" class="opt${lquiz.ans[qi] === ci ? ' sel' : ''}" data-act="lq-pick" data-q="${qi}" data-i="${ci}" aria-pressed="${lquiz.ans[qi] === ci}"><span class="k">${KO[ci]}</span><span>${esc(c.t)}</span></button>`).join('')}</div></fieldset>`).join('');
+    return `<p class="muted">${kind === 'pre' ? `ตอบ ${total} ข้อ ดูว่ารู้เรื่องนี้มาก่อนแค่ไหน ตอบไม่ได้ไม่เป็นไร ยังไม่แสดงเฉลย` : `ตอบ ${total} ข้อ แล้วเทียบคะแนนกับก่อนเรียน เกณฑ์ผ่าน ${Math.ceil(total * PASS / 100)} ข้อ`}</p>
+<div class="lq-list">${items}</div>
+<div class="row"><button type="button" class="btn primary" data-act="lq-submit" data-kind="${kind}"${answered === total ? '' : ' disabled'}>ส่งคำตอบ (ตอบแล้ว ${answered}/${total})</button></div>`;
+  }
+  function lessonQuizResult(u, l, lesson, kind) {
+    const total = lquiz.qs.length;
+    const p = pct(lquiz.score, total);
+    const base = `#${u.id}-l${l}`;
+    if (kind === 'pre') {
+      return `<div class="score"><div class="big">${lquiz.score}<small>/${total}</small></div><span class="chip">ร้อยละ ${p}</span>
+<p>${p >= 80 ? 'รู้เรื่องนี้มาก่อนเยอะเลย เรียนต่อให้เก่งยิ่งขึ้น' : 'ไม่เป็นไร ชั่วโมงนี้เราจะได้เรียนรู้เรื่องนี้ด้วยกัน'}</p>
+<a class="btn primary" href="${base}-warm">ไปขั้นคำถามนำ →</a></div>`;
+    }
+    const lr = lessonRec(u.id, l);
+    const gain = lquiz.score - (lr.pre ? lr.pre.score : 0);
+    const lv = level(p);
+    const review = lquiz.qs.map((q, k) => {
+      const mine = q.choices[lquiz.ans[k]];
+      const right = q.choices.find((c) => c.ok);
+      return `<article class="rv"><h3>${k + 1}. ${esc(q.q)}</h3><p class="ans">คำตอบของฉัน: <b class="${mine.ok ? 'ok' : 'bad'}">${esc(mine.t)} ${mine.ok ? '✓' : '✗'}</b>${mine.ok ? '' : `<br>คำตอบที่ถูก: <b class="ok">${esc(right.t)}</b>`}</p><p class="why">${esc(q.explain)}</p></article>`;
+    }).join('');
+    return `<div class="score"><div class="big">${lquiz.score}<small>/${total}</small></div><span class="chip ${lv.c}">ร้อยละ ${p} · ${lv.t}</span>
+<div class="compare" style="width:100%;max-width:440px">
+  <div class="stat"><b>${lr.pre ? lr.pre.score : '–'}</b><span>ก่อนเรียน</span></div>
+  <div class="stat"><b>${lquiz.score}</b><span>หลังเรียน</span></div>
+  <div class="stat"><b>${gain >= 0 ? '+' : ''}${gain}</b><span>พัฒนาการ</span></div>
+</div>
+<p>${p >= PASS ? 'ผ่านเกณฑ์แล้ว เรียนบทนี้จบแล้ว!' : 'ยังไม่ผ่านเกณฑ์ ลองอ่านเฉลย ทบทวนเนื้อหา แล้วทำอีกครั้ง'}</p>
+<div class="row" style="justify-content:center"><button type="button" class="btn" data-act="lq-retry" data-kind="post">ทำอีกครั้ง</button></div></div>
+<h3 style="font-size:var(--fs-2)">เฉลยและคำอธิบาย</h3><div class="review">${review}</div>`;
+  }
+
+  function teacherPlan(u, l, lesson) {
+    const g = lesson.game && GAMES.find((x) => x.id === lesson.game);
+    const heads = (lesson.body + (lesson.more || '')).match(/<h3>([\s\S]*?)<\/h3>/g) || [];
+    const topics = heads.map(plain).join(' · ');
+    const rows = {
+      pre: `นักเรียนทำแบบทดสอบก่อนเรียนประจำบท ${(lesson.quiz || []).length} ข้อในบทเรียนออนไลน์ (ทำได้คนละครั้ง)`,
+      warm: `ครูถามคำถามนำ ${(lesson.warmup || []).map((w) => `“${w.q}”`).join(' และ ')} ให้นักเรียนแสดงความคิดเห็น แล้วบอกจุดประสงค์ของชั่วโมงนี้`,
+      learn: `ครูอธิบายเนื้อหาร่วมกับสื่อในบทเรียน หัวข้อ: ${topics || lesson.title} ระหว่างเรียนให้นักเรียนตอบคำถาม "ลองคิด" และทบทวนคำศัพท์น่ารู้`,
+      do: `${lesson.activity || 'นักเรียนทำกิจกรรมฝึกปฏิบัติ'}${g ? ` จากนั้นเล่นเกม "${g.title}"` : ''} ครูเดินดูและให้คำแนะนำ`,
+      sum: `ครูและนักเรียนร่วมกันสรุป: ${(lesson.recap || []).join(' / ')} แล้วย้อนกลับไปตอบคำถามนำอีกครั้ง`,
+      post: `นักเรียนทำแบบทดสอบหลังเรียนประจำบท เกณฑ์ผ่าน ${Math.ceil((lesson.quiz || []).length * PASS / 100)} ข้อ (ร้อยละ ${PASS}) ดูผลรายคนได้ที่หน้าผลการเรียน`
+    };
+    return `<details class="tplan"><summary>แผนการสอน 60 นาที (สำหรับครู)</summary><div class="tplan-in">
+<div class="tplan-cols">
+  <div><h3>จุดประสงค์การเรียนรู้</h3><ul>${(lesson.goals || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
+  <div><h3>สื่อและอุปกรณ์</h3><ul>${(lesson.materials || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
+</div>
+<div class="tbl-wrap"><table class="tbl"><thead><tr><th>ขั้น</th><th class="num">นาที</th><th>กิจกรรมการเรียนรู้</th></tr></thead><tbody>
+${STAGES.map((st) => `<tr><td><b>${st.step}</b><br><span class="muted">${st.name}</span></td><td class="num">${st.min}</td><td>${esc(rows[st.id])}</td></tr>`).join('')}
+<tr class="sum"><td>รวม</td><td class="num">${STAGES.reduce((a, st) => a + st.min, 0)}</td><td></td></tr>
+</tbody></table></div>
+<h3>การวัดและประเมินผล</h3>
+<div class="tbl-wrap"><table class="tbl"><thead><tr><th>วิธีวัด</th><th>เครื่องมือ</th><th>เกณฑ์</th></tr></thead><tbody>
+<tr><td>ทดสอบก่อน–หลังเรียน</td><td>แบบทดสอบประจำบท ${(lesson.quiz || []).length} ข้อ</td><td>หลังเรียนถูกตั้งแต่ร้อยละ ${PASS} และสูงกว่าก่อนเรียน</td></tr>
+<tr><td>ตรวจกิจกรรมฝึกปฏิบัติ</td><td>ใบงาน / แบบฝึกหัดออนไลน์</td><td>ถูกต้องตั้งแต่ร้อยละ ${PASS}</td></tr>
+<tr><td>สังเกตพฤติกรรม</td><td>แบบสังเกตการทำงานกลุ่ม</td><td>ระดับดีขึ้นไป</td></tr>
+</tbody></table></div>
+</div></details>`;
+  }
+
+  function stageBody(u, l, lesson, lr, sid) {
+    const base = `#${u.id}-l${l}`;
+    const key = `${u.id}-${l}-${sid}`;
+    if (sid === 'pre') {
+      if (lquiz && lquiz.key === key && lquiz.done) return lessonQuizResult(u, l, lesson, 'pre');
+      if (lr.pre) return `<div class="score"><div class="big">${lr.pre.score}<small>/${lr.pre.total}</small></div><span class="chip">ทำแล้วเมื่อ ${thaiDate(lr.pre.at)}</span><p class="muted">แบบทดสอบก่อนเรียนทำได้คนละครั้ง</p><a class="btn primary" href="${base}-warm">ไปขั้นคำถามนำ →</a></div>`;
+      return lessonQuizHTML(u, l, lesson, 'pre');
+    }
+    if (sid === 'warm') {
+      return `<div class="goal-box"><h3>ชั่วโมงนี้เราจะได้เรียนรู้</h3><ul>${(lesson.goals || []).map((x) => `<li>${esc(goalText(x))}</li>`).join('')}</ul></div>
+${lesson.art ? art(lesson.art, lesson.caption, 'lesson-art') : ''}
+<p class="muted">คิดคำตอบในใจ หรือคุยกับเพื่อนที่นั่งด้วยกันก่อน แล้วค่อยกดดูแนวคำตอบ</p>
+<div class="warm-list">${(lesson.warmup || []).map((w, i) => `<div class="warm"><span class="wq-n" aria-hidden="true">?${i + 1}</span><div><p class="wq">${esc(w.q)}</p><details><summary>ดูแนวคำตอบ</summary><p>${esc(w.guide)}</p></details></div></div>`).join('')}</div>`;
+    }
+    if (sid === 'learn') {
+      const vocab = lesson.vocab ? `<section class="box vocab"><h2>คำศัพท์น่ารู้</h2><dl>${lesson.vocab.map(([th, en, m]) => `<div><dt>${th} <span lang="en">${en}</span></dt><dd>${m}</dd></div>`).join('')}</dl></section>` : '';
+      return `<div class="prose">${lesson.body}${lesson.more || ''}${lesson.moreArt ? art(lesson.moreArt) : ''}</div><div class="extras">${vocab}</div>`;
+    }
+    if (sid === 'do') {
+      const g = lesson.game && GAMES.find((x) => x.id === lesson.game);
+      return `<div class="extras">
+${lesson.activity ? `<section class="box activity"><h2>กิจกรรมฝึกปฏิบัติ</h2><p>${lesson.activity}</p>${lesson.activityAnswer ? `<details><summary>ดูคำตอบ</summary>${lesson.activityAnswer}</details>` : ''}</section>` : ''}
+${g ? `<a class="box game-link" href="#game-${g.id}"><span class="gl-emoji" aria-hidden="true">${g.emoji}</span><span class="gl-text"><b>เล่นเกม ${g.title}</b><span>${g.desc}</span></span><span class="go">เล่นเลย →</span></a>` : ''}
+<a class="box game-link" href="#${u.id}-ex"><span class="gl-emoji" aria-hidden="true">✏️</span><span class="gl-text"><b>แบบฝึกหัดหน่วยที่ ${unitNo(u)}</b><span>${u.exercises.length} ข้อ เลือกตอบ เรียงลำดับ จับคู่ ทำซ้ำได้จนถูก</span></span><span class="go">ทำแบบฝึกหัด →</span></a>
+</div>`;
+    }
+    if (sid === 'sum') {
+      return `<section class="recap" style="margin-top:0"><h2>สรุปบทเรียน</h2><ul>${lesson.recap.map((x) => `<li>${x}</li>`).join('')}</ul></section>
+${lesson.fact ? `<section class="box fact" style="margin-top:14px"><h2>เกร็ดความรู้</h2><p>${lesson.fact}</p></section>` : ''}
+<h3 style="font-size:var(--fs-2);margin-top:18px">ย้อนกลับไปตอบคำถามนำ</h3>
+<div class="warm-list">${(lesson.warmup || []).map((w, i) => `<div class="warm"><span class="wq-n" aria-hidden="true">?${i + 1}</span><div><p class="wq">${esc(w.q)}</p><p class="muted">${esc(w.guide)}</p></div></div>`).join('')}</div>`;
+    }
+    // post
+    if (lquiz && lquiz.key === key) return lessonQuizHTML(u, l, lesson, 'post');
+    if (lr.post) {
+      return `<div class="score"><div class="big">${lr.post.best}<small>/${lr.post.total}</small></div><span class="chip ${level(pct(lr.post.best, lr.post.total)).c}">คะแนนสูงสุด · ทำแล้ว ${lr.post.tries} ครั้ง</span>
+<div class="row" style="justify-content:center"><button type="button" class="btn" data-act="lq-retry" data-kind="post">ทำอีกครั้ง</button></div></div>`;
+    }
+    return lessonQuizHTML(u, l, lesson, 'post');
+  }
+
+  function lessonPage(u, l, stageId) {
     const n = unitNo(u);
     const lesson = u.lessons[l - 1];
     const r = rec(u.id);
-    const isLast = l === u.lessons.length;
-    const next = isLast ? `#${u.id}-ex` : `#${u.id}-l${l + 1}`;
-    const side = u.lessons.map((x, i) => `
-<li><a href="#${u.id}-l${i + 1}"${i + 1 === l ? ' aria-current="page" style="outline:2px solid var(--c)"' : ''}><span class="tick${r.lessons[i + 1] ? ' on' : ''}" aria-hidden="true">${r.lessons[i + 1] ? '✓' : ''}</span><span>${n}.${i + 1} ${x.title}</span><span></span></a></li>`).join('');
+    const lr = lessonRec(u.id, l);
+    const sid = stageId || defaultStage(lr);
+    const si = STAGES.findIndex((x) => x.id === sid);
+    const st = STAGES[si];
+    const base = `#${u.id}-l${l}`;
+    const locked = sid !== 'pre' && !lr.pre;
+    const bar = STAGES.map((x, i) => {
+      const done = (x.id === 'pre' && lr.pre) || (x.id === 'post' && lr.post);
+      return `<li class="${i === si ? 'cur' : ''}${done ? ' done' : ''}"><a href="${base}-${x.id}"${i === si ? ' aria-current="step"' : ''}><span class="st-n">${done ? '✓' : i + 1}</span><span class="st-t">${x.name}<small>${x.min} นาที</small></span></a></li>`;
+    }).join('');
+    const prev = si > 0 ? `<a class="btn ghost" href="${base}-${STAGES[si - 1].id}">← ${STAGES[si - 1].name}</a>` : `<a class="btn ghost" href="#${u.id}">← หน้าหน่วย</a>`;
+    const last = si === STAGES.length - 1;
+    const nextHref = !last ? `${base}-${STAGES[si + 1].id}` : l < u.lessons.length ? `#${u.id}-l${l + 1}` : `#${u.id}-ex`;
+    const nextLabel = !last ? STAGES[si + 1].name : l < u.lessons.length ? `บทที่ ${n}.${l + 1}` : 'แบบฝึกหัดของหน่วย';
+    const canNext = !locked && !(sid === 'pre' && !lr.pre) && !(sid === 'post' && !lr.post);
+    const side = u.lessons.map((x, i) => {
+      const xr = lessonRec(u.id, i + 1);
+      return `<li><a href="#${u.id}-l${i + 1}"${i + 1 === l ? ' aria-current="page" style="outline:2px solid var(--c)"' : ''}><span class="tick${r.lessons[i + 1] ? ' on' : ''}" aria-hidden="true">${r.lessons[i + 1] ? '✓' : ''}</span><span>${n}.${i + 1} ${x.title}</span><span class="muted" style="font-size:var(--fs-0)">${xr.post ? `${xr.post.best}/${xr.post.total}` : ''}</span></a></li>`;
+    }).join('');
+    const body = locked
+      ? `<div class="lock-note"><p>เริ่มจากทำ<b>แบบทดสอบก่อนเรียน</b> 5 ข้อก่อนนะ แล้วจึงเรียนขั้นต่อไปได้</p><a class="btn primary" href="${base}-pre">ไปทำแบบทดสอบก่อนเรียน</a></div>`
+      : stageBody(u, l, lesson, lr, sid);
     return `
 <div class="wrap ${u.id}">
   <nav class="crumbs" aria-label="ตำแหน่ง"><a href="#home">หน้าแรก</a><span>›</span><a href="#${u.id}">หน่วยที่ ${n} ${u.title}</a><span>›</span><span>บทที่ ${n}.${l}</span></nav>
   <div class="reader">
     <article class="article">
       <div class="head">
-        <p class="eyebrow">หน่วยที่ ${n} · บทเรียนที่ ${n}.${l} จาก ${u.lessons.length} บท</p>
+        <p class="eyebrow">หน่วยที่ ${n} · บทที่ ${n}.${l} จาก ${u.lessons.length} บท · 1 ชั่วโมง</p>
         <h1>${lesson.title}</h1>
       </div>
-      ${lesson.art ? art(lesson.art, lesson.caption, 'lesson-art') : ''}
-      <div class="prose">${lesson.body}${lesson.more || ''}${lesson.moreArt ? art(lesson.moreArt) : ''}</div>
-      ${lessonExtras(lesson)}
-      <section class="recap"><h2>สรุปบทเรียน</h2><ul>${lesson.recap.map((x) => `<li>${x}</li>`).join('')}</ul></section>
-      <div class="pager">
-        ${l > 1 ? `<a class="btn ghost" href="#${u.id}-l${l - 1}">← บทก่อนหน้า</a>` : `<a class="btn ghost" href="#${u.id}">← กลับหน้าหน่วย</a>`}
-        <button class="btn primary" type="button" data-act="read" data-next="${next}">${r.lessons[l] ? '' : 'อ่านจบแล้ว · '}${isLast ? 'ไปทำแบบฝึกหัด' : 'บทถัดไป'} →</button>
-      </div>
+      <ol class="stages" aria-label="ขั้นตอนการเรียน 60 นาที">${bar}</ol>
+      ${teacherPlan(u, l, lesson)}
+      <section class="stage" aria-labelledby="stage-h">
+        <p class="eyebrow">ขั้นที่ ${si + 1} · ${st.step} · ${st.min} นาที</p>
+        <h2 id="stage-h" class="stage-h">${st.name}</h2>
+        ${body}
+      </section>
+      <div class="pager">${prev}${canNext ? `<a class="btn primary" href="${nextHref}">${nextLabel} →</a>` : ''}</div>
     </article>
     <aside class="side panel">
       <h2>บทเรียนในหน่วยนี้</h2>
@@ -510,18 +688,6 @@
     </aside>
   </div>
 </div>`;
-  }
-
-  function lessonExtras(lesson) {
-    const g = lesson.game && GAMES.find((x) => x.id === lesson.game);
-    const vocab = lesson.vocab
-      ? `<section class="box vocab"><h2>คำศัพท์น่ารู้</h2><dl>${lesson.vocab.map(([th, en, m]) => `<div><dt>${th} <span lang="en">${en}</span></dt><dd>${m}</dd></div>`).join('')}</dl></section>` : '';
-    const act = lesson.activity
-      ? `<section class="box activity"><h2>กิจกรรมฝึกปฏิบัติ</h2><p>${lesson.activity}</p>${lesson.activityAnswer ? `<details><summary>ดูคำตอบ</summary>${lesson.activityAnswer}</details>` : ''}</section>` : '';
-    const fact = lesson.fact ? `<section class="box fact"><h2>เกร็ดความรู้</h2><p>${lesson.fact}</p></section>` : '';
-    const game = g
-      ? `<a class="box game-link" href="#game-${g.id}"><span class="gl-emoji" aria-hidden="true">${g.emoji}</span><span class="gl-text"><b>เล่นเกม ${g.title}</b><span>${g.desc}</span></span><span class="go">เล่นเลย →</span></a>` : '';
-    return vocab || act || fact || game ? `<div class="extras">${vocab}${act}${fact}${game}</div>` : '';
   }
 
   /* ───────── แบบทดสอบ ───────── */
@@ -890,7 +1056,9 @@ ${prev}
       if (r.post) post += r.post.best;
       return { pre: r.pre ? r.pre.score : null, post: r.post ? r.post.best : null };
     });
-    return { units, pre, post, max, stars: totalStars(key) };
+    const lessons = C.units.reduce((a, u) => a + u.lessons.filter((_, i) => ((L.units[u.id] || {}).lessons || {})[i + 1]).length, 0);
+    const lessonMax = C.units.reduce((a, u) => a + u.lessons.length, 0);
+    return { units, pre, post, max, lessons, lessonMax, stars: totalStars(key) };
   }
   // สรุปผลทุกคนที่เรียนบนเครื่องนี้ สำหรับคัดลอกส่งครู
   function summaryText() {
@@ -900,7 +1068,7 @@ ${prev}
     keys.forEach((k) => {
       const t = learnerTotals(k);
       const unitText = t.units.map((x, i) => `หน่วย${i + 1} ${x.pre == null ? '-' : x.pre}/${x.post == null ? '-' : x.post}`).join(' ');
-      lines.push(`${nameOf(k)} | ${unitText} | รวมก่อน ${t.pre}/${t.max} หลัง ${t.post}/${t.max} | ดาว ${t.stars.stars}/${t.stars.max}`);
+      lines.push(`${nameOf(k)} | ${unitText} | รวมก่อน ${t.pre}/${t.max} หลัง ${t.post}/${t.max} | เรียนจบ ${t.lessons}/${t.lessonMax} บท | ดาว ${t.stars.stars}/${t.stars.max}`);
     });
     lines.push('', 'รูปแบบคะแนน: หน่วย ก่อนเรียน/หลังเรียน (เต็มหน่วยละ 10)');
     return lines.join('\n');
@@ -997,10 +1165,10 @@ ${prev}
     const rows = keys.map((k) => {
       const t = learnerTotals(k);
       const cells = t.units.map((x) => `<td class="num">${x.pre == null ? '–' : x.pre}</td><td class="num">${x.post == null ? '–' : x.post}</td>`).join('');
-      return `<tr${mine.includes(k) ? ' class="me"' : ''}><td>${esc(nameOf(k))}</td>${cells}<td class="num"><b>${t.pre}</b></td><td class="num"><b>${t.post}</b></td><td class="num">${t.stars.stars}</td></tr>`;
+      return `<tr${mine.includes(k) ? ' class="me"' : ''}><td>${esc(nameOf(k))}</td>${cells}<td class="num"><b>${t.pre}</b></td><td class="num"><b>${t.post}</b></td><td class="num">${t.lessons}/${t.lessonMax}</td><td class="num">${t.stars.stars}</td></tr>`;
     }).join('');
     return `<div class="tbl-wrap"><table class="tbl roster-tbl">
-<thead><tr><th rowspan="2">นักเรียน</th>${head1}<th colspan="2" class="num">รวม (เต็ม 50)</th><th rowspan="2" class="num">ดาว</th></tr>
+<thead><tr><th rowspan="2">นักเรียน</th>${head1}<th colspan="2" class="num">รวม (เต็ม 50)</th><th rowspan="2" class="num">บทที่<br>เรียนจบ</th><th rowspan="2" class="num">ดาว</th></tr>
 <tr>${head2}<th class="num sub">ก่อน</th><th class="num sub">หลัง</th></tr></thead>
 <tbody>${rows}</tbody></table></div>`;
   }
@@ -1060,10 +1228,40 @@ ${prev}
     return { u, i, ex: u.exercises[i], t: tmp(u, i) };
   }
   const actions = {
-    'read'(el) {
-      const u = current.u;
-      eachUnit(u.id, (r) => { r.lessons[current.l] = true; });
-      location.hash = el.dataset.next;
+    'lq-pick'(el) {
+      lquiz.ans[Number(el.dataset.q)] = Number(el.dataset.i);
+      render(false);
+      const b = app.querySelector(`[data-act="lq-pick"][data-q="${el.dataset.q}"][data-i="${el.dataset.i}"]`);
+      if (b) b.focus({ preventScroll: true });
+    },
+    'lq-submit'(el) {
+      const kind = el.dataset.kind;
+      const { u, l } = current;
+      const total = lquiz.qs.length;
+      const score = lquiz.qs.filter((q, k) => lquiz.ans[k] !== undefined && q.choices[lquiz.ans[k]].ok).length;
+      const at = Date.now();
+      eachUnit(u.id, (r) => {
+        r.lq = r.lq || {};
+        const x = r.lq[l] || (r.lq[l] = {});
+        if (kind === 'pre') { if (!x.pre) x.pre = { score, total, at }; }
+        else {
+          const p0 = x.post || { best: 0, tries: 0 };
+          x.post = { score, total, at, best: Math.max(p0.best, score), tries: p0.tries + 1 };
+          r.lessons[l] = true;
+        }
+      });
+      lquiz.done = true;
+      lquiz.score = score;
+      const want = `#${u.id}-l${l}-${kind}`;
+      if (location.hash !== want) location.hash = want; // แสดงผลคะแนนในขั้นเดิม
+      else render(false);
+      const h = document.getElementById('stage-h');
+      if (h) h.scrollIntoView({ block: 'start' });
+    },
+    'lq-retry'() {
+      const { u, l } = current;
+      lquiz = newLquiz(`${u.id}-${l}-post`, u.lessons[l - 1]);
+      render(false);
     },
     'q-start'(el) {
       startQuiz(current.u, el.dataset.kind);
@@ -1251,6 +1449,7 @@ ${prev}
     const v = parse();
     // ออกจากหน้าแบบทดสอบระหว่างทำ ให้เริ่มใหม่เมื่อกลับมา
     if (quiz && !(v.view === 'quiz' && v.u.id === quiz.uid && v.kind === quiz.kind)) quiz = null;
+    if (lquiz && !(v.view === 'lesson' && lquiz.key === `${v.u.id}-${v.l}-${v.stage}`)) lquiz = null;
     askReset = false;
     render(true);
   });
