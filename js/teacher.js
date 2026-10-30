@@ -106,7 +106,7 @@
       Object.keys(L.units || {}).forEach((id) => { if (/^[a-z]\d$/.test(id)) o.units[id] = cleanUnit(L.units[id]); });
       Object.keys(L.games || {}).forEach((id) => {
         const g = L.games[id];
-        if (!/^[a-z]+$/.test(id) || !g || typeof g !== 'object') return;
+        if (!/^[a-z0-9]+$/.test(id) || !g || typeof g !== 'object') return;
         const x = {};
         ['best', 'score', 'plays', 'wrong'].forEach((k) => { if (g[k] != null) x[k] = num(g[k]); });
         if (g.lv && typeof g.lv === 'object') { x.lv = {}; Object.keys(g.lv).forEach((k) => { if (/^\d+$/.test(k)) x.lv[k] = num(g.lv[k]); }); }

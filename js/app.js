@@ -164,8 +164,8 @@
     const h = location.hash.replace(/^#/, '');
     let m;
     if (!h || h === 'home') return { view: 'home' };
-    if (h === 'course' || h === 'results' || h === 'games' || h === 'login' || h === 'teacher') return { view: h };
-    if ((m = h.match(/^game-([a-z]+)$/)) && GAMES.find((g) => g.id === m[1])) return { view: 'game', game: GAMES.find((g) => g.id === m[1]) };
+    if (h === 'course' || h === 'results' || h === 'games' || h === 'login' || h === 'teacher' || h === 'world') return { view: h };
+    if ((m = h.match(/^game-([a-z0-9]+)$/)) && GAMES.find((g) => g.id === m[1])) return { view: 'game', game: GAMES.find((g) => g.id === m[1]) };
     if ((m = h.match(/^([a-z]\d)$/)) && unitById(m[1])) return { view: 'unit', u: unitById(m[1]) };
     if ((m = h.match(/^([a-z]\d)-l(\d+)(?:-(pre|warm|learn|do|sum|post))?$/)) && unitById(m[1]) && unitById(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitById(m[1]), l: Number(m[2]), stage: m[3] };
     if ((m = h.match(/^([a-z]\d)-(pre|post)$/)) && unitById(m[1])) return { view: 'quiz', u: unitById(m[1]), kind: m[2] };
@@ -189,6 +189,7 @@
     else if (v.view === 'login') html = loginPage();
     else if (v.view === 'course') html = coursePage();
     else if (v.view === 'games') html = gamesPage();
+    else if (v.view === 'world') html = worldPage();
     else if (v.view === 'game') html = gamePage(v.game);
     else if (v.view === 'results') html = resultsPage();
     else if (v.view === 'unit') html = unitPage(v.u);
@@ -200,8 +201,9 @@
     enhance(app);
     if (v.view === 'game' && state.session) mountGame(v.game);
     if (v.view === 'lesson') cardsMounted();
+    if (v.view === 'world' && state.session) mountWorld();
     renderWho();
-    const navKey = v.view === 'game' ? 'games' : ['course', 'results', 'games'].includes(v.view) ? v.view : 'home';
+    const navKey = v.view === 'game' ? 'games' : ['course', 'results', 'games', 'world'].includes(v.view) ? v.view : 'home';
     document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('on', a.dataset.nav === navKey));
     if (scrollTop) {
       window.scrollTo(0, 0);
@@ -250,6 +252,7 @@
       <div class="row">
         <a class="btn primary" href="#${C.units[0].id}">เริ่มเรียนหน่วยที่ 1</a>
         <a class="btn" href="#games">ลานเกม ${starText(stars.stars, stars.max)}</a>
+        <a class="btn world-btn" href="#world">🏘️ เข้าหมู่บ้านน้องสนุก 3D</a>
       </div>
     </div>
     ${art(C.heroArt || 'mascot', '', 'hero-art')}
@@ -285,6 +288,52 @@
     </ul>
   </section>
 </div>`;
+  }
+
+  /* ───────── หมู่บ้านน้องสนุก 3 มิติ (js/village3d.js) ───────── */
+  function worldPage() {
+    return `
+<div class="wrap world">
+  <div class="stack">
+    ${subjTabs()}
+    <p class="eyebrow">หมู่บ้านน้องสนุก 3D · ${C.subject}</p>
+    <h1 style="font-size:var(--fs-4)">พาน้องสนุกเดินไปเรียนแต่ละบ้าน</h1>
+  </div>
+  <div class="w3d-wrap"><div id="w3d" class="w3d"></div></div>
+  <div class="w3d-list" id="w3d-list" role="group" aria-label="เดินไปยังสถานที่"></div>
+  <section class="panel stack" id="w3d-panel" aria-live="polite"></section>
+</div>`;
+  }
+  function mountWorld() {
+    const root = app.querySelector('.world');
+    if (!root || !window.Village3D) return;
+    const view = current;
+    let stop = null;
+    let gone = false;
+    leaveFns.push(() => { gone = true; if (stop) stop(); });
+    const go = () => {
+      if (gone || current !== view) return;
+      stop = window.Village3D.mountVillage(root, {
+        course: () => C,
+        esc,
+        games: (uid) => GAMES.filter((g) => g.unit === uid),
+        unitInfo(u) {
+          const s = stats(u);
+          const r = s.r;
+          const got = earned(u, r);
+          return {
+            progress: s.progress,
+            badge: got,
+            mission: MISSIONS[u.id],
+            badgeHTML: badgeHTML(u, got),
+            chips: `${chip('ก่อนเรียน', r.pre ? `${r.pre.score}/${r.pre.total}` : '–', !!r.pre)}${chip('บทเรียน', `${s.read}/${u.lessons.length}`, s.read === u.lessons.length)}${chip('แบบฝึกหัด', `${s.exDone}/${u.exercises.length}`, s.exDone === u.exercises.length)}${chip('หลังเรียน', r.post ? `${r.post.best}/${r.post.total}` : '–', !!r.post)}`
+          };
+        }
+      });
+    };
+    // รอฟอนต์ภาษาไทยโหลดก่อน ป้ายในฉากจะได้ใช้ฟอนต์ที่ถูกต้อง
+    const ready = document.fonts && document.fonts.ready ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]) : Promise.resolve();
+    ready.then(go);
   }
 
   /* ───────── เลือกชื่อผู้เรียน ───────── */
