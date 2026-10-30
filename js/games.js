@@ -887,5 +887,7 @@
     { id: 'safe', unit: 'c5', emoji: '🦺', title: 'ปลอดภัยหรือไม่', desc: 'ตัดสินว่าการกระทำแต่ละอย่างปลอดภัยหรือไม่ปลอดภัย', mount: sortGame({ cats: SAFE, items: SAFETY, prompt: 'การกระทำนี้ปลอดภัยหรือไม่' }), summary: bestOf }
   ];
 
+  // ตัวช่วยสำหรับเกมเพิ่มเติมใน games2.js
+  window.GameKit = { starRow, bind, keepBest, endScreen, bestOf, sumLevels };
   window.GAME_DATA = { CAT_LEVELS, GUESS, TURTLE, BUGS, WEBS, HERO, PAIRS, TRASH, TOOLS, DRESS, HANDTOOLS, SAFETY };
 })();

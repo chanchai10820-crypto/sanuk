@@ -38,6 +38,7 @@
     state.subject = key;
     save();
   }
+  let TM = null;          // หน้าครู สร้างตอนท้ายไฟล์
   let quiz = null;        // แบบทดสอบที่กำลังทำอยู่
   let temp = {};          // สถานะชั่วคราวของแบบฝึกหัดแต่ละข้อ
   let askReset = false;
@@ -116,12 +117,54 @@
     return { r, read, exDone, exFirst, progress };
   }
 
+  /* ───────── ภารกิจและเหรียญตรา ───────── */
+  const MISSIONS = window.MISSIONS || {};
+  // ได้เหรียญตราเมื่อเรียนครบทุกบทและทดสอบหลังเรียนผ่านเกณฑ์ (r = ผลของหน่วยนั้น)
+  function earned(u, r) {
+    r = r || {};
+    const ls = r.lessons || {};
+    return u.lessons.every((_, i) => ls[i + 1]) && !!r.post && pct(r.post.best, r.post.total) >= PASS;
+  }
+  function badgeHTML(u, on, small) {
+    const m = MISSIONS[u.id];
+    if (!m) return '';
+    const b = m.badge;
+    if (small) return `<span class="badge sm${on ? ' on' : ''}" title="เหรียญตรา ${b.t}${on ? '' : ' (ยังไม่ได้รับ)'}" aria-label="เหรียญตรา ${b.t}${on ? '' : ' ยังไม่ได้รับ'}">${b.e}</span>`;
+    return `<span class="badge${on ? ' on' : ''}"><span class="badge-e" aria-hidden="true">${b.e}</span><b>${b.t}</b><small>${on ? 'ได้รับแล้ว' : 'ยังไม่ได้รับ'}</small></span>`;
+  }
+  function badgeShelf() {
+    const got = C.units.filter((u) => earned(u, rec(u.id))).length;
+    return `<section class="panel stack"><div class="row" style="justify-content:space-between"><h2>เหรียญตราภารกิจ</h2><span class="chip">ได้แล้ว ${got}/${C.units.length}</span></div>
+<div class="badges">${C.units.map((u, i) => `<a class="badge-link" href="#${u.id}" aria-label="หน่วยที่ ${i + 1}">${badgeHTML(u, earned(u, rec(u.id)))}</a>`).join('')}</div>
+<p class="muted">เรียนครบทุกบท และทำแบบทดสอบหลังเรียนได้ตั้งแต่ร้อยละ ${PASS} ขึ้นไป เพื่อรับเหรียญตราของหน่วย</p></section>`;
+  }
+  function missionMap(u, s) {
+    const m = MISSIONS[u.id];
+    if (!m) return '';
+    const n = unitNo(u);
+    const r = s.r;
+    const got = earned(u, r);
+    const nodes = [
+      { e: '🚩', t: 'เช็กพลังก่อนออกเดินทาง', sub: 'ทดสอบก่อนเรียน', href: `#${u.id}-pre`, done: !!r.pre },
+      ...u.lessons.map((l, i) => ({ e: `${n}.${i + 1}`, t: l.title, sub: 'บทเรียน 1 ชั่วโมง', href: `#${u.id}-l${i + 1}`, done: !!r.lessons[i + 1] })),
+      { e: '✏️', t: 'ด่านฝึกฝีมือ', sub: 'แบบฝึกหัด', href: `#${u.id}-ex`, done: s.exDone === u.exercises.length },
+      { e: '🏁', t: 'ด่านสุดท้าย', sub: `ทดสอบหลังเรียน ผ่านร้อยละ ${PASS}`, href: `#${u.id}-post`, done: !!r.post && pct(r.post.best, r.post.total) >= PASS }
+    ];
+    const cur = nodes.findIndex((x) => !x.done);
+    const items = nodes.map((x, i) => `<li class="mnode${x.done ? ' done' : ''}${i === cur ? ' cur' : ''}"><a href="${x.href}"${i === cur ? ' aria-current="step"' : ''}>
+<span class="mdot" aria-hidden="true">${x.done ? '✓' : x.e}</span><span class="mtext"><b>${x.t}</b><small>${x.done ? 'ผ่านแล้ว' : x.sub}</small></span>${i === cur ? '<span class="mhere" title="น้องสนุกอยู่ตรงนี้">🐱</span>' : ''}</a></li>`).join('');
+    return `<section class="mission panel">
+  <div class="mission-head"><div class="stack"><p class="eyebrow">ภารกิจของหน่วยที่ ${n}</p><h2>🎯 ${m.goal}</h2><p>${m.story}</p></div>${badgeHTML(u, got)}</div>
+  <ol class="mission-map">${items}<li class="mnode prize${got ? ' done' : ''}"><span class="mlink"><span class="mdot" aria-hidden="true">${m.badge.e}</span><span class="mtext"><b>${m.badge.t}</b><small>${got ? 'ได้รับเหรียญตราแล้ว!' : 'รางวัลเมื่อจบภารกิจ'}</small></span></span></li></ol>
+</section>`;
+  }
+
   /* ───────── เส้นทาง ───────── */
   function parse() {
     const h = location.hash.replace(/^#/, '');
     let m;
     if (!h || h === 'home') return { view: 'home' };
-    if (h === 'course' || h === 'results' || h === 'games' || h === 'login') return { view: h };
+    if (h === 'course' || h === 'results' || h === 'games' || h === 'login' || h === 'teacher') return { view: h };
     if ((m = h.match(/^game-([a-z]+)$/)) && GAMES.find((g) => g.id === m[1])) return { view: 'game', game: GAMES.find((g) => g.id === m[1]) };
     if ((m = h.match(/^([a-z]\d)$/)) && unitById(m[1])) return { view: 'unit', u: unitById(m[1]) };
     if ((m = h.match(/^([a-z]\d)-l(\d+)(?:-(pre|warm|learn|do|sum|post))?$/)) && unitById(m[1]) && unitById(m[1]).lessons[m[2] - 1]) return { view: 'lesson', u: unitById(m[1]), l: Number(m[2]), stage: m[3] };
@@ -132,6 +175,7 @@
 
   let current = parse();
   function render(scrollTop) {
+    speech.stop();
     leaveFns.forEach((fn) => { try { fn(); } catch (e) { /* ไม่เป็นไร */ } });
     leaveFns = [];
     current = parse();
@@ -140,7 +184,8 @@
     if (v.u) setCourse(v.u.course.key);
     if (v.game) setCourse(unitById(v.game.unit).course.key);
     let html;
-    if (!state.session && v.view !== 'course') html = loginPage();
+    if (v.view === 'teacher' && TM) html = TM.page();
+    else if (!state.session && v.view !== 'course') html = loginPage();
     else if (v.view === 'login') html = loginPage();
     else if (v.view === 'course') html = coursePage();
     else if (v.view === 'games') html = gamesPage();
@@ -154,6 +199,7 @@
     app.innerHTML = html;
     enhance(app);
     if (v.view === 'game' && state.session) mountGame(v.game);
+    if (v.view === 'lesson') cardsMounted();
     renderWho();
     const navKey = v.view === 'game' ? 'games' : ['course', 'results', 'games'].includes(v.view) ? v.view : 'home';
     document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('on', a.dataset.nav === navKey));
@@ -186,6 +232,7 @@
       ${chip('บทเรียน', `${s.read}/${u.lessons.length}`, s.read === u.lessons.length)}
       ${chip('แบบฝึกหัด', `${s.exDone}/${u.exercises.length}`, s.exDone === u.exercises.length)}
       ${chip('หลังเรียน', r.post ? `${r.post.best}/${r.post.total}` : '–', !!r.post)}
+      ${badgeHTML(u, earned(u, r), true)}
     </div>
   </div>
   <span class="go">${go}</span>
@@ -214,6 +261,8 @@
       </div>
     </section>
   </section>
+
+  ${badgeShelf()}
 
   <section class="stack">
     <div class="script-title">
@@ -257,7 +306,7 @@
   function renderWho() {
     const small = document.querySelector('.brand-name small');
     if (small) small.textContent = `${C.short} ป.3`;
-    const foot = document.querySelector('.foot-in');
+    const foot = document.querySelector('.foot-ref');
     if (foot && C.ref) foot.textContent = C.ref;
     const el = document.getElementById('who');
     if (!el) return;
@@ -522,6 +571,7 @@
     </div>
     ${art(u.art, '', 'band-pic')}
   </header>
+  ${missionMap(u, s)}
   <div class="path">
     <div class="step${r.pre ? ' done' : ''}"><span class="n">1</span><section class="panel"><h2>แบบทดสอบก่อนเรียน</h2>${preBody}</section></div>
     <div class="step${s.read === u.lessons.length ? ' done' : ''}"><span class="n">2</span><section class="panel">
@@ -538,6 +588,166 @@
     <div class="gcards">${GAMES.filter((g) => g.unit === u.id).map(gameCard).join('')}</div>
   </section>
 </div>`;
+  }
+
+  /* ───────── อ่านออกเสียง (เสียงภาษาไทยของเบราว์เซอร์) ───────── */
+  const speech = {
+    ok: typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined',
+    btn: null,
+    voice() { try { return speechSynthesis.getVoices().find((v) => /^th\b|^th[-_]/i.test(v.lang)) || null; } catch (e) { return null; } },
+    stop() {
+      if (!this.ok) return;
+      try { speechSynthesis.cancel(); } catch (e) { /* ไม่เป็นไร */ }
+      if (this.btn) { this.btn.classList.remove('on'); this.btn.setAttribute('aria-pressed', 'false'); }
+      this.btn = null;
+    },
+    say(text, btn) {
+      this.stop();
+      if (!this.ok || !text) return;
+      // เบราว์เซอร์บางตัวหยุดอ่านเมื่อข้อความยาว จึงแบ่งเป็นช่วงสั้น ๆ ตามช่องว่าง
+      const parts = [];
+      let cur = '';
+      text.split(/\s+/).forEach((w) => {
+        if ((cur + ' ' + w).length > 140 && cur) { parts.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w;
+      });
+      if (cur) parts.push(cur);
+      const voice = this.voice();
+      this.btn = btn;
+      btn.classList.add('on');
+      btn.setAttribute('aria-pressed', 'true');
+      parts.forEach((t, i) => {
+        const ut = new SpeechSynthesisUtterance(t);
+        ut.lang = 'th-TH';
+        if (voice) ut.voice = voice;
+        ut.rate = 0.9;
+        if (i === parts.length - 1) ut.onend = () => { if (this.btn === btn) this.stop(); };
+        speechSynthesis.speak(ut);
+      });
+      const msg = document.getElementById('speak-msg');
+      if (msg) msg.textContent = voice ? '' : 'ถ้าไม่ได้ยินเสียง แสดงว่าเครื่องนี้ยังไม่มีเสียงอ่านภาษาไทย ให้ใช้ Google Chrome หรือเพิ่มภาษาไทยในการตั้งค่าเสียงของเครื่อง';
+    }
+  };
+  if (speech.ok) { try { speechSynthesis.getVoices(); } catch (e) { /* โหลดรายชื่อเสียงไว้ก่อน */ } }
+  function speakBtn(target, icon) {
+    if (!speech.ok) return '';
+    return `<button type="button" class="speak${icon ? ' speak-icon' : ''}" data-act="speak" data-target="${target}" aria-pressed="false" aria-label="ฟังเสียงอ่าน" title="ฟังเสียงอ่าน"><span aria-hidden="true">🔊</span>${icon ? '' : ' ฟัง'}</button>`;
+  }
+  function speakText(el) {
+    const c = el.cloneNode(true);
+    c.querySelectorAll('.speak, .ck-tf, .ck-wait, .opts').forEach((x) => x.remove());
+    // ตัวเลือกของแบบทดสอบอ่านต่อท้ายคำถาม
+    const opts = [...el.querySelectorAll('.opts .opt span:last-child')].map((x, i) => `${KO[i]} ${x.textContent}`).join(' ');
+    return ((c.innerText || c.textContent || '') + ' ' + opts).replace(/\s+/g, ' ').trim();
+  }
+
+  /* ───────── บทบาทในกลุ่ม: หมุนเวียนทุกบท ทุกคนได้ทำทุกหน้าที่ ───────── */
+  const ROLES = [
+    { e: '🖱️', t: 'คนกด', d: 'กดปุ่มและเลือกคำตอบตามที่กลุ่มตกลงกัน' },
+    { e: '📖', t: 'คนอ่าน', d: 'อ่านเนื้อหาและคำถามออกเสียงให้เพื่อนฟัง' },
+    { e: '✏️', t: 'คนจด', d: 'จดคำตอบและสิ่งที่ได้เรียนรู้ลงสมุด' },
+    { e: '✅', t: 'คนตรวจ', d: 'ชวนเพื่อนตรวจคำตอบอีกครั้งก่อนกดส่ง' }
+  ];
+  const HELPER = { e: '🤝', t: 'ผู้ช่วย', d: 'ช่วยเพื่อนคิดและเสนอคำตอบ' };
+  function rolesFor(u, l, keys) {
+    const g = u.course.units.slice(0, unitNo(u) - 1).reduce((a, x) => a + x.lessons.length, 0) + (l - 1);
+    return keys.map((k, i) => (i < ROLES.length ? ROLES[(i + g) % ROLES.length] : HELPER));
+  }
+  function rolesHTML(u, l) {
+    const keys = members();
+    if (keys.length < 2) return '';
+    const roles = rolesFor(u, l, keys);
+    return `<section class="roles" aria-label="บทบาทในกลุ่มชั่วโมงนี้"><p class="eyebrow">บทบาทในกลุ่มชั่วโมงนี้ (สลับกันทุกบท)</p>
+<ul>${keys.map((k, i) => `<li><span class="role-e" aria-hidden="true">${roles[i].e}</span><span><b>${esc(nameOf(k, true).replace(/^\d+\.\s*/, ''))} · ${roles[i].t}</b><small>${roles[i].d}</small></span></li>`).join('')}</ul></section>`;
+  }
+
+  /* ───────── ขั้นเรียนเนื้อหา: การ์ดทีละเรื่อง และคำถามเช็กความเข้าใจ ───────── */
+  const cardPos = {};   // ตำแหน่งการ์ดที่เปิดอยู่ของแต่ละบท { i, max }
+  const ckWait = {};    // เวลาที่เริ่มนับถอยหลังให้กลุ่มคุยกันก่อนตอบ
+  const WAIT_SEC = 20;
+  function lessonSlides(u, l, lesson) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = lesson.body + (lesson.more || '') + (lesson.moreArt ? art(lesson.moreArt) : '');
+    // แบ่งการ์ดที่หัวข้อ <h3> ระดับบนสุด
+    const cards = [];
+    let cur = null;
+    [...tpl.content.childNodes].forEach((nd) => {
+      if (nd.nodeType === 1 && nd.tagName === 'H3') { cur = document.createElement('div'); cards.push(cur); }
+      if (!cur) { cur = document.createElement('div'); cards.push(cur); }
+      cur.appendChild(nd);
+    });
+    const content = cards.filter((c) => c.textContent.trim() || c.querySelector('svg, table, .mini-grid, .bars')).map((c) => ({ type: 'card', html: c.innerHTML }));
+    // การ์ดแรกที่เป็นคำนำ (ไม่มีหัวข้อ) ใส่ภาพประกอบของบทไว้ด้วย
+    if (content[0] && !/^\s*<h3/.test(content[0].html) && lesson.art && !/<svg/.test(content[0].html)) content[0].html += art(lesson.art, lesson.caption, 'lesson-art');
+    const checks = (window.CHECKS || {})[`${u.id}-${l}`] || [];
+    const after = [Math.max(1, Math.ceil(content.length / 2)), content.length];
+    const slides = [];
+    content.forEach((c, n) => {
+      slides.push(c);
+      checks.forEach((q, k) => { if (after[k] === n + 1) slides.push({ type: 'check', k, q }); });
+    });
+    if (lesson.vocab) slides.push({ type: 'vocab' });
+    return slides;
+  }
+  function ckRec(uid, l) { return (rec(uid).ck || {})[l] || {}; }
+  function slideHTML(u, l, lesson, sl, i, total, live) {
+    const pos = `<span class="eyebrow">${i + 1} / ${total}</span>`;
+    if (sl.type === 'card') {
+      return `<section class="lcard" id="slide-${i}"><div class="lcard-bar">${pos}${speakBtn(`slide-${i}`)}</div><div class="prose lcard-body">${sl.html}</div></section>`;
+    }
+    if (sl.type === 'vocab') {
+      return `<section class="lcard" id="slide-${i}"><div class="lcard-bar">${pos}${speakBtn(`slide-${i}`)}</div><div class="box vocab"><h2>คำศัพท์น่ารู้</h2><dl>${lesson.vocab.map(([th, en, m]) => `<div><dt>${th} <span lang="en">${en}</span></dt><dd>${m}</dd></div>`).join('')}</dl></div></section>`;
+    }
+    const a = ckRec(u.id, l)[sl.k];
+    const key = `${u.id}-${l}-${sl.k}`;
+    const group = members().length > 1;
+    const waiting = live && group && !a && (!ckWait[key] || Date.now() - ckWait[key] < WAIT_SEC * 1000);
+    const left = ckWait[key] ? Math.max(0, WAIT_SEC - Math.floor((Date.now() - ckWait[key]) / 1000)) : WAIT_SEC;
+    const btn = (v, label, k) => `<button type="button" class="opt${a && a.v === v ? (a.ok ? ' right' : ' wrong') : a && v === sl.q.a ? ' right' : ''}" data-act="ck" data-k="${sl.k}" data-v="${v}"${a || waiting ? ' disabled' : ''}><span class="k">${k}</span><span>${label}</span></button>`;
+    return `<section class="lcard check" id="slide-${i}">
+<div class="lcard-bar">${pos}<span class="ck-tag">🤔 เช็กความเข้าใจ</span>${speakBtn(`slide-${i}`)}</div>
+<p class="ck-q">${esc(sl.q.s)}</p>
+<p class="muted ck-ask">ข้อความนี้ถูกหรือผิด?</p>
+${waiting ? `<div class="ck-wait" aria-live="polite"><span>👥 ปรึกษากันในกลุ่มก่อนตอบ</span><b class="ck-left" data-key="${key}">${left}</b><span>วินาที</span><button type="button" class="btn ghost" data-act="ck-ready" data-k="${sl.k}">พร้อมตอบแล้ว</button></div>` : ''}
+<div class="tf ck-tf">${btn(true, 'ถูก', '✓')}${btn(false, 'ผิด', '✗')}</div>
+<div aria-live="polite">${a ? `<p class="feedback ${a.ok ? 'ok' : 'bad'}">${a.ok ? 'ถูกต้อง!' : `ยังไม่ถูก ข้อความนี้${sl.q.a ? 'ถูก' : 'ผิด'}`} ${esc(sl.q.why)}</p>` : ''}</div>
+</section>`;
+  }
+  function cardsHTML(u, l, lesson) {
+    const slides = lessonSlides(u, l, lesson);
+    const key = `${u.id}-${l}`;
+    const showAll = !!(state.prefs && state.prefs.allCards);
+    const toggle = `<button type="button" class="btn ghost" data-act="cards-all">${showAll ? 'ดูทีละการ์ด' : 'ดูทั้งหมดในหน้าเดียว'}</button>`;
+    const note = '<p class="muted" id="speak-msg" aria-live="polite"></p>';
+    if (showAll) {
+      return `<div class="cards all"><div class="cards-top"><span class="muted">เนื้อหาทั้งหมด ${slides.length} การ์ด</span>${toggle}</div>${note}
+${slides.map((sl, i) => slideHTML(u, l, lesson, sl, i, slides.length, false)).join('')}</div>`;
+    }
+    const p = cardPos[key] || (cardPos[key] = { i: 0, max: 0 });
+    p.i = Math.min(p.i, slides.length - 1);
+    const sl = slides[p.i];
+    const blocked = sl.type === 'check' && !ckRec(u.id, l)[sl.k];
+    if (sl.type === 'check' && members().length > 1 && !ckWait[`${key}-${sl.k}`] && !ckRec(u.id, l)[sl.k]) ckWait[`${key}-${sl.k}`] = Date.now();
+    const dots = slides.map((x, i) => `<button type="button" class="cdot${i === p.i ? ' cur' : ''}${i < p.i || i <= p.max ? ' seen' : ''}${x.type === 'check' ? ' q' : ''}" data-act="card-go" data-i="${i}" aria-label="การ์ดที่ ${i + 1}${x.type === 'check' ? ' คำถาม' : ''}"${i > p.max ? ' disabled' : ''}>${x.type === 'check' ? '?' : ''}</button>`).join('');
+    const last = p.i === slides.length - 1;
+    return `<div class="cards" data-key="${key}">
+<div class="cards-top"><div class="cdots" role="group" aria-label="การ์ดเนื้อหา">${dots}</div>${toggle}</div>${note}
+${slideHTML(u, l, lesson, sl, p.i, slides.length, true)}
+<div class="card-nav">
+  <button type="button" class="btn ghost" data-act="card-prev"${p.i === 0 ? ' disabled' : ''}>← การ์ดก่อนหน้า</button>
+  ${last ? '<span class="chip ok">อ่านครบทุกการ์ดแล้ว ไปขั้นต่อไปได้เลย</span>' : `<button type="button" class="btn primary" data-act="card-next"${blocked ? ' disabled' : ''}>${blocked ? 'ตอบคำถามก่อนนะ' : 'การ์ดถัดไป →'}</button>`}
+</div></div>`;
+  }
+  function cardsMounted() {
+    // นับถอยหลังให้กลุ่มปรึกษากัน แล้วจึงเปิดปุ่มตอบ
+    const el = app.querySelector('.ck-left');
+    if (!el) return;
+    const t = setInterval(() => {
+      const start = ckWait[el.dataset.key];
+      const left = Math.max(0, WAIT_SEC - Math.floor((Date.now() - start) / 1000));
+      el.textContent = left;
+      if (left === 0) { clearInterval(t); render(false); }
+    }, 500);
+    leaveFns.push(() => clearInterval(t));
   }
 
   /* ───────── หน้าบทเรียน: 1 บท = 1 ชั่วโมง 6 ขั้น ───────── */
@@ -560,7 +770,7 @@
   function newLquiz(key, lesson) {
     return {
       key, done: false, ans: [],
-      qs: shuffle(lesson.quiz || []).map((q) => ({ q: q.q, explain: q.explain, choices: shuffle(q.choices.map((t, k) => ({ t, ok: k === q.a }))) }))
+      qs: shuffle((lesson.quiz || []).map((q, i) => ({ q, i }))).map(({ q, i }) => ({ i, q: q.q, explain: q.explain, choices: shuffle(q.choices.map((t, k) => ({ t, k, ok: k === q.a }))) }))
     };
   }
   function lessonQuizHTML(u, l, lesson, kind) {
@@ -570,7 +780,7 @@
     const total = lquiz.qs.length;
     const answered = lquiz.ans.filter((a) => a !== undefined).length;
     const items = lquiz.qs.map((q, qi) => `
-<fieldset class="lq"><legend>${qi + 1}. ${esc(q.q)}</legend><div class="opts">${q.choices.map((c, ci) => `<button type="button" class="opt${lquiz.ans[qi] === ci ? ' sel' : ''}" data-act="lq-pick" data-q="${qi}" data-i="${ci}" aria-pressed="${lquiz.ans[qi] === ci}"><span class="k">${KO[ci]}</span><span>${esc(c.t)}</span></button>`).join('')}</div></fieldset>`).join('');
+<fieldset class="lq" id="lq-${qi}"><legend>${qi + 1}. ${esc(q.q)}</legend>${speakBtn(`lq-${qi}`, true)}<div class="opts">${q.choices.map((c, ci) => `<button type="button" class="opt${lquiz.ans[qi] === ci ? ' sel' : ''}" data-act="lq-pick" data-q="${qi}" data-i="${ci}" aria-pressed="${lquiz.ans[qi] === ci}"><span class="k">${KO[ci]}</span><span>${esc(c.t)}</span></button>`).join('')}</div></fieldset>`).join('');
     return `<p class="muted">${kind === 'pre' ? `ตอบ ${total} ข้อ ดูว่ารู้เรื่องนี้มาก่อนแค่ไหน ตอบไม่ได้ไม่เป็นไร ยังไม่แสดงเฉลย` : `ตอบ ${total} ข้อ แล้วเทียบคะแนนกับก่อนเรียน เกณฑ์ผ่าน ${Math.ceil(total * PASS / 100)} ข้อ`}</p>
 <div class="lq-list">${items}</div>
 <div class="row"><button type="button" class="btn primary" data-act="lq-submit" data-kind="${kind}"${answered === total ? '' : ' disabled'}>ส่งคำตอบ (ตอบแล้ว ${answered}/${total})</button></div>`;
@@ -603,16 +813,17 @@
 <h3 style="font-size:var(--fs-2)">เฉลยและคำอธิบาย</h3><div class="review">${review}</div>`;
   }
 
+  const lessonGames = (u, l, lesson) => GAMES.filter((x) => x.id === lesson.game || x.lesson === `${u.id}-${l}`);
   function teacherPlan(u, l, lesson) {
     const STAGES = stagesOf(C);
-    const g = lesson.game && GAMES.find((x) => x.id === lesson.game);
+    const gs = lessonGames(u, l, lesson);
     const heads = (lesson.body + (lesson.more || '')).match(/<h3>([\s\S]*?)<\/h3>/g) || [];
     const topics = heads.map(plain).join(' · ');
     const rows = {
       pre: `นักเรียนทำแบบทดสอบก่อนเรียนประจำบท ${(lesson.quiz || []).length} ข้อในบทเรียนออนไลน์ (ทำได้คนละครั้ง)`,
       warm: `ครูถามคำถามนำ ${(lesson.warmup || []).map((w) => `“${w.q}”`).join(' และ ')} ให้นักเรียนแสดงความคิดเห็น แล้วบอกจุดประสงค์ของชั่วโมงนี้`,
       learn: `ครูอธิบายเนื้อหาร่วมกับสื่อในบทเรียน หัวข้อ: ${topics || lesson.title} ระหว่างเรียนให้นักเรียนตอบคำถาม "ลองคิด" และทบทวนคำศัพท์น่ารู้`,
-      do: `${lesson.activity || 'นักเรียนทำกิจกรรมฝึกปฏิบัติ'}${g ? ` จากนั้นเล่นเกม "${g.title}"` : ''} ครูเดินดูและให้คำแนะนำ`,
+      do: `${lesson.activity || 'นักเรียนทำกิจกรรมฝึกปฏิบัติ'}${gs.length ? ` จากนั้นเล่นเกม ${gs.map((g) => `"${g.title}"`).join(' และ ')}` : ''} ครูเดินดูและให้คำแนะนำ`,
       sum: `ครูและนักเรียนร่วมกันสรุป: ${(lesson.recap || []).join(' / ')} แล้วย้อนกลับไปตอบคำถามตอนต้นชั่วโมงอีกครั้ง`,
       post: `นักเรียนทำแบบทดสอบหลังเรียนประจำบท เกณฑ์ผ่าน ${Math.ceil((lesson.quiz || []).length * PASS / 100)} ข้อ (ร้อยละ ${PASS}) ดูผลรายคนได้ที่หน้าผลการเรียน`
     };
@@ -646,17 +857,14 @@ ${STAGES.map((st) => `<tr><td><b>${st.step}</b><br><span class="muted">${st.name
       return `<div class="goal-box"><h3>ชั่วโมงนี้เราจะได้เรียนรู้</h3><ul>${(lesson.goals || []).map((x) => `<li>${esc(goalText(x))}</li>`).join('')}</ul></div>
 ${lesson.art ? art(lesson.art, lesson.caption, 'lesson-art') : ''}
 <p class="muted">คิดคำตอบในใจ หรือคุยกับเพื่อนที่นั่งด้วยกันก่อน แล้วค่อยกดดูแนวคำตอบ</p>
-<div class="warm-list">${(lesson.warmup || []).map((w, i) => `<div class="warm"><span class="wq-n" aria-hidden="true">?${i + 1}</span><div><p class="wq">${esc(w.q)}</p><details><summary>ดูแนวคำตอบ</summary><p>${esc(w.guide)}</p></details></div></div>`).join('')}</div>`;
+<div class="warm-list">${(lesson.warmup || []).map((w, i) => `<div class="warm"><span class="wq-n" aria-hidden="true">?${i + 1}</span><div><p class="wq" id="wq-${i}">${esc(w.q)} ${speakBtn(`wq-${i}`, true)}</p><details><summary>ดูแนวคำตอบ</summary><p>${esc(w.guide)}</p></details></div></div>`).join('')}</div>`;
     }
-    if (sid === 'learn') {
-      const vocab = lesson.vocab ? `<section class="box vocab"><h2>คำศัพท์น่ารู้</h2><dl>${lesson.vocab.map(([th, en, m]) => `<div><dt>${th} <span lang="en">${en}</span></dt><dd>${m}</dd></div>`).join('')}</dl></section>` : '';
-      return `<div class="prose">${lesson.body}${lesson.more || ''}${lesson.moreArt ? art(lesson.moreArt) : ''}</div><div class="extras">${vocab}</div>`;
-    }
+    if (sid === 'learn') return cardsHTML(u, l, lesson);
     if (sid === 'do') {
-      const g = lesson.game && GAMES.find((x) => x.id === lesson.game);
+      const gs = lessonGames(u, l, lesson);
       return `<div class="extras">
 ${lesson.activity ? `<section class="box activity"><h2>กิจกรรมฝึกปฏิบัติ</h2><p>${lesson.activity}</p>${lesson.activityAnswer ? `<details><summary>ดูคำตอบ</summary>${lesson.activityAnswer}</details>` : ''}</section>` : ''}
-${g ? `<a class="box game-link" href="#game-${g.id}"><span class="gl-emoji" aria-hidden="true">${g.emoji}</span><span class="gl-text"><b>เล่นเกม ${g.title}</b><span>${g.desc}</span></span><span class="go">เล่นเลย →</span></a>` : ''}
+${gs.map((g) => `<a class="box game-link" href="#game-${g.id}"><span class="gl-emoji" aria-hidden="true">${g.emoji}</span><span class="gl-text"><b>เล่นเกม ${g.title}</b><span>${g.desc}</span></span><span class="go">เล่นเลย →</span></a>`).join('')}
 <a class="box game-link" href="#${u.id}-ex"><span class="gl-emoji" aria-hidden="true">✏️</span><span class="gl-text"><b>แบบฝึกหัดหน่วยที่ ${unitNo(u)}</b><span>${u.exercises.length} ข้อ เลือกตอบ เรียงลำดับ จับคู่ ทำซ้ำได้จนถูก</span></span><span class="go">ทำแบบฝึกหัด →</span></a>
 </div>`;
     }
@@ -711,6 +919,7 @@ ${lesson.fact ? `<section class="box fact" style="margin-top:14px"><h2>เกร
         <p class="eyebrow">หน่วยที่ ${n} · บทที่ ${n}.${l} จาก ${u.lessons.length} บท · 1 ชั่วโมง</p>
         <h1>${lesson.title}</h1>
       </div>
+      ${rolesHTML(u, l)}
       <ol class="stages" aria-label="ขั้นตอนการเรียน 60 นาที">${bar}</ol>
       ${teacherPlan(u, l, lesson)}
       <section class="stage" aria-labelledby="stage-h">
@@ -719,6 +928,7 @@ ${lesson.fact ? `<section class="box fact" style="margin-top:14px"><h2>เกร
         ${body}
       </section>
       <div class="pager">${prev}${canNext ? `<a class="btn primary" href="${nextHref}">${nextLabel} →</a>` : ''}</div>
+      ${TM ? TM.dock(u, l, st) : ''}
     </article>
     <aside class="side panel">
       <h2>บทเรียนในหน่วยนี้</h2>
@@ -737,10 +947,11 @@ ${lesson.fact ? `<section class="box fact" style="margin-top:14px"><h2>เกร
       i: 0,
       ans: [],
       done: false,
-      qs: shuffle(u.test).map((q) => ({
+      qs: shuffle(u.test.map((q, i) => ({ q, i }))).map(({ q, i }) => ({
+        i,
         q: q.q,
         explain: q.explain,
-        choices: shuffle(q.choices.map((t, k) => ({ t, ok: k === q.a })))
+        choices: shuffle(q.choices.map((t, k) => ({ t, k, ok: k === q.a })))
       }))
     };
   }
@@ -791,9 +1002,9 @@ ${prev}
     <div class="meter"><span style="width:${pct(answered, total)}%;background:var(--c)"></span></div>
     <div class="dots">${dots}</div>
   </div>
-  <section class="qcard">
+  <section class="qcard" id="qcard">
     <p class="eyebrow">ข้อที่ ${quiz.i + 1} จาก ${total}</p>
-    <h2>${esc(q.q)}</h2>
+    <h2 id="qcard-q">${esc(q.q)}</h2>${speakBtn('qcard', true)}
     <div class="opts">${opts}</div>
     ${quiz.warn ? `<p class="feedback bad">${quiz.warn}</p>` : ''}
   </section>
@@ -805,16 +1016,23 @@ ${prev}
   </div>
 </div>`;
   }
+  // ข้อที่ตอบผิด { ดัชนีข้อเดิม: ดัชนีตัวเลือกที่เลือก } ใช้วิเคราะห์ข้อสอบในหน้าครู
+  function missOf(qz) {
+    const miss = {};
+    qz.qs.forEach((q, k) => { const c = q.choices[qz.ans[k]]; if (!c || !c.ok) miss[q.i] = c ? c.k : -1; });
+    return miss;
+  }
   function gradeQuiz(u) {
     const total = quiz.qs.length;
     const score = quiz.qs.filter((q, k) => quiz.ans[k] !== undefined && q.choices[quiz.ans[k]].ok).length;
     const at = Date.now();
+    const miss = missOf(quiz);
     eachUnit(u.id, (r) => {
       if (quiz.kind === 'pre') {
-        if (!r.pre) r.pre = { score, total, at };
+        if (!r.pre) r.pre = { score, total, at, miss };
       } else {
         const p = r.post || { best: 0, tries: 0 };
-        r.post = { score, total, at, best: Math.max(p.best, score), tries: p.tries + 1 };
+        r.post = { score, total, at, best: Math.max(p.best, score), tries: p.tries + 1, miss };
       }
     });
     quiz.done = true;
@@ -857,6 +1075,7 @@ ${prev}
     <div class="stat"><b>${gain >= 0 ? '+' : ''}${gain}</b><span>พัฒนาการ</span></div>
   </div>
   <p>${p >= PASS ? (gain > 0 ? `เก่งขึ้นกว่าก่อนเรียน ${gain} คะแนน ยอดเยี่ยม!` : 'ผ่านเกณฑ์แล้ว เก่งมาก!') : 'ยังไม่ผ่านเกณฑ์ร้อยละ 60 ลองอ่านเฉลย ทบทวนบทเรียน แล้วทำใหม่อีกครั้ง'}</p>
+  ${MISSIONS[u.id] ? (earned(u, r) ? `<div class="badge-win" role="status"><span aria-hidden="true">🎉</span>${badgeHTML(u, true)}<p><b>ภารกิจสำเร็จ!</b> ได้รับเหรียญตรา "${MISSIONS[u.id].badge.t}"</p></div>` : p >= PASS ? `<p class="muted">เรียนบทที่เหลือให้ครบ เพื่อรับเหรียญตรา "${MISSIONS[u.id].badge.t}"</p>` : '') : ''}
   <div class="row" style="justify-content:center">
     <button class="btn" type="button" data-act="q-start" data-kind="post">ทำอีกครั้ง</button>
     ${n < C.units.length ? `<a class="btn primary" href="#${C.units[n].id}">ไปหน่วยที่ ${n + 1}</a>` : `<a class="btn primary" href="#results">ดูผลการเรียน</a>`}
@@ -1162,6 +1381,7 @@ ${prev}
     <div class="stat"><b>${pre}/${max}</b><span>คะแนนก่อนเรียนรวม</span></div>
     <div class="stat"><b>${post}/${max}</b><span>คะแนนหลังเรียนรวม (สูงสุด)</span></div>
   </div>
+  ${badgeShelf()}
   <div class="report">
     <section class="panel stack">
       <h2>คะแนนรายหน่วย${mine.length > 1 ? 'ของกลุ่ม' : ''}</h2>
@@ -1186,8 +1406,9 @@ ${prev}
     <p class="muted">แถวที่เน้นสีคือกลุ่มที่กำลังเรียนอยู่ คะแนนหลังเรียนเป็นคะแนนสูงสุด</p>
     ${deviceTable()}
   </section>
+  ${TM ? TM.studentExportHTML() : ''}
   <section class="panel stack">
-    <h2>ส่งผลการเรียนให้คุณครู</h2>
+    <h2>สรุปผลแบบข้อความ</h2>
     <p class="muted">ผลการเรียนเก็บไว้ในเบราว์เซอร์ของเครื่องนี้เท่านั้น สรุปด้านล่างรวมทุกคนที่เรียนบนเครื่องนี้ กดคัดลอกแล้ววางส่งให้ครูทางแชตหรืออีเมล</p>
     <textarea class="copybox" id="copybox" readonly>${esc(summaryText())}</textarea>
     <div class="row"><button type="button" class="btn primary" data-act="copy">คัดลอกสรุปผล</button><span id="copy-msg" class="muted" aria-live="polite"></span></div>
@@ -1280,13 +1501,14 @@ ${prev}
       const total = lquiz.qs.length;
       const score = lquiz.qs.filter((q, k) => lquiz.ans[k] !== undefined && q.choices[lquiz.ans[k]].ok).length;
       const at = Date.now();
+      const miss = missOf(lquiz);
       eachUnit(u.id, (r) => {
         r.lq = r.lq || {};
         const x = r.lq[l] || (r.lq[l] = {});
-        if (kind === 'pre') { if (!x.pre) x.pre = { score, total, at }; }
+        if (kind === 'pre') { if (!x.pre) x.pre = { score, total, at, miss }; }
         else {
           const p0 = x.post || { best: 0, tries: 0 };
-          x.post = { score, total, at, best: Math.max(p0.best, score), tries: p0.tries + 1 };
+          x.post = { score, total, at, best: Math.max(p0.best, score), tries: p0.tries + 1, miss };
           r.lessons[l] = true;
         }
       });
@@ -1297,6 +1519,40 @@ ${prev}
       else render(false);
       const h = document.getElementById('stage-h');
       if (h) h.scrollIntoView({ block: 'start' });
+    },
+    'speak'(el) {
+      if (speech.btn === el) { speech.stop(); return; }
+      const target = document.getElementById(el.dataset.target);
+      if (target) speech.say(speakText(target), el);
+    },
+    'card-next'() { moveCard(1); },
+    'card-prev'() { moveCard(-1); },
+    'card-go'(el) { moveCard(0, Number(el.dataset.i)); },
+    'cards-all'() {
+      state.prefs = Object.assign({}, state.prefs, { allCards: !(state.prefs && state.prefs.allCards) });
+      save();
+      render(false);
+    },
+    'ck-ready'(el) {
+      ckWait[`${current.u.id}-${current.l}-${el.dataset.k}`] = Date.now() - WAIT_SEC * 1000;
+      render(false);
+      const b = app.querySelector('[data-act="ck"]');
+      if (b) b.focus({ preventScroll: true });
+    },
+    'ck'(el) {
+      const { u, l } = current;
+      const k = Number(el.dataset.k);
+      const q = ((window.CHECKS || {})[`${u.id}-${l}`] || [])[k];
+      if (!q) return;
+      const v = el.dataset.v === 'true';
+      eachUnit(u.id, (r) => {
+        r.ck = r.ck || {};
+        const x = r.ck[l] || (r.ck[l] = {});
+        if (!x[k]) x[k] = { v, ok: v === q.a, at: Date.now() };
+      });
+      render(false);
+      const nx = app.querySelector('[data-act="card-next"]') || app.querySelector('.card-nav .chip');
+      if (nx && nx.focus) nx.focus({ preventScroll: true });
     },
     'lq-retry'() {
       const { u, l } = current;
@@ -1469,15 +1725,31 @@ ${prev}
       render(true);
     }
   };
+  function moveCard(step, to) {
+    const { u, l } = current;
+    const key = `${u.id}-${l}`;
+    const p = cardPos[key] || (cardPos[key] = { i: 0, max: 0 });
+    const n = lessonSlides(u, l, u.lessons[l - 1]).length;
+    p.i = Math.max(0, Math.min(n - 1, to != null ? to : p.i + step));
+    p.max = Math.max(p.max, p.i);
+    render(false);
+    const card = app.querySelector('.cards');
+    if (card && card.getBoundingClientRect().top < 0) card.scrollIntoView({ block: 'start' });
+    const f = app.querySelector('[data-act="card-next"]:not([disabled])') || app.querySelector('[data-act="ck"]:not([disabled])') || app.querySelector('.lcard');
+    if (f && f.focus) f.focus({ preventScroll: true });
+  }
   function resetRun(t) { t.pos = null; t.trail = []; t.crash = null; t.fb = null; t.runIdx = -1; }
 
   app.addEventListener('click', (e) => {
     const el = e.target.closest('[data-act]');
-    if (!el || el.disabled || !actions[el.dataset.act]) return;
+    if (!el || el.disabled) return;
+    const fn = actions[el.dataset.act] || (TM && TM.actions[el.dataset.act]);
+    if (!fn) return;
     e.preventDefault();
-    actions[el.dataset.act](el, e);
+    fn(el, e);
   });
   app.addEventListener('change', (e) => {
+    if (TM && TM.change(e)) return;
     const el = e.target;
     if (el.dataset && el.dataset.match !== undefined) {
       const u = current.u;
@@ -1489,7 +1761,7 @@ ${prev}
       refreshCard(u, i, `#${el.id}`);
     }
   });
-  app.addEventListener('submit', (e) => e.preventDefault());
+  app.addEventListener('submit', (e) => { if (!(TM && TM.submit(e))) e.preventDefault(); });
 
   window.addEventListener('hashchange', () => {
     const v = parse();
@@ -1499,6 +1771,16 @@ ${prev}
     askReset = false;
     render(true);
   });
+  // หน้าครู (js/teacher.js) ใช้ข้อมูลและตัวช่วยของเว็บผ่าน api นี้
+  TM = window.TeacherModule ? window.TeacherModule({
+    COURSES, ROSTER, PASS, GAMES, esc, pct, level, thaiDate, earned, badgeHTML, stagesOf, subjTabs, mergeGame, reduceMotion,
+    course: () => C,
+    state: () => state,
+    local: () => state.learners,
+    save,
+    render
+  }) : null;
+
   // ปุ่มเต็มจอ แสดงเฉพาะเบราว์เซอร์ที่อนุญาตให้ใช้โหมดเต็มจอ
   const fsBtn = document.getElementById('fs');
   if (fsBtn && document.fullscreenEnabled) {
